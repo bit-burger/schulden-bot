@@ -17,4 +17,4 @@ async def on_message(message: discord.Message):
         await message.channel.send('schulderinos 😎')
 
 
-config.client.run('MTIxMzA3MzIyNTg4MjQwNjk2Mw.GqRQFT.lknDjE4-71Ddbs4BmU8NFSsHESjmtCl5cXoA_s')
+config.client.run(config.token)
