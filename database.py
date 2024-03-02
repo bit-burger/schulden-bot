@@ -14,7 +14,7 @@ class BaseModel(Model):
 class RegisteredUser(BaseModel):
     id = TextField(primary_key=True)
     deleted_at = DateTimeField(null=True)
-    send_friend_invites_per_dm = BooleanField(default=False)
+    # (whitelisting jeder whitelisted wen anders) send_friend_invites_per_dm = BooleanField(default=False)
     everyone_allowed_per_default = BooleanField(default=False)
 
 
