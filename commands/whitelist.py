@@ -33,10 +33,10 @@ async def whitelist_view(interaction: discord.Interaction):
               guild=discord.Object(id=1201588191094906890))
 async def whitelist_reset(interaction: discord.Interaction):
     user = check_register(interaction)
-    interaction.response.edit_message(view=WhitelistUserReset(user),
-                                      embed=discord.Embed(title="Do you want to reset your whitelist?",
-                                                          description="Are you sure that you want to reset your whitelist, this is not reversable",
-                                                          color=0xFF0000))
+    await interaction.response.send_message(view=WhitelistUserReset(user),
+                                            embed=discord.Embed(title="Do you want to reset your whitelist?",
+                                                                description="Are you sure that you want to reset your whitelist, this is not reversable",
+                                                                color=0xFF0000))
 
 
 @tree.command(name="whitelist_remove", description="remove people from whitelist",
@@ -109,9 +109,9 @@ class WhitelistUserReset(ui.View):
 
     @ui.button(label="Reset whitelist", style=discord.ButtonStyle.red)
     async def confirm(self, interaction: discord.Interaction, button: discord.ui.Button):
-        WhitelistUser.delete().where(WhitelistUser.by == self.user)
-        interaction.response.edit_message(view=ui.View(),
-                                          embed=discord.Embed(title="Whitelist has been reset", color=0xFF0000))
+        WhitelistUser.delete().where(WhitelistUser.by == self.user).execute()
+        await interaction.response.edit_message(view=ui.View(),
+                                                embed=discord.Embed(title="Whitelist has been reset", color=0xFF0000))
         self.stop()
 
     @ui.button(label="Cancel", style=discord.ButtonStyle.green)
