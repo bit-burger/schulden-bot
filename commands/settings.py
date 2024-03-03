@@ -25,8 +25,8 @@ class OpenToEveryoneSelect(ui.Select):
         options = [discord.SelectOption(value="1", label="Open to track debt with everyone",
                                         description="everyone can track your debt, except those that you /ignore",
                                         default=user.everyone_allowed_per_default),
-                   discord.SelectOption(value="0", label="Only whitelisted (default)",
-                                        description="only track debt with whitelisted users (with /whitelist)",
+                   discord.SelectOption(value="0", label="Only whitelisted",
+                                        description="only track debt with whitelisted users (with /whitelist) (default)",
                                         default=not user.everyone_allowed_per_default)]
 
         self.user = user
