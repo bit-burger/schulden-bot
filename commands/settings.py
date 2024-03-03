@@ -10,7 +10,7 @@ from discord import ui, Interaction
 async def settings(interaction: discord.Interaction):
     user = check_register(interaction)
     embed = discord.Embed(title="Settings", description="Your settings will be saved automatically", colour=discord.Colour.dark_gray())
-    await interaction.response.send_message(embed=embed, view=Settings(user))
+    await interaction.response.send_message(embed=embed, view=Settings(user), ephemeral=True)
 
 
 class Settings(discord.ui.View):
@@ -35,4 +35,4 @@ class OpenToEveryoneSelect(ui.Select):
     async def callback(self, interaction: Interaction):
         self.user.everyone_allowed_per_default = self.values[0] == "1"
         self.user.save()
-        await interaction.response.send_message(embed=discord.Embed(title="Settings saved!"))
+        await interaction.response.send_message(embed=discord.Embed(title="Settings saved!"), ephemeral=True)
