@@ -1,7 +1,7 @@
 from peewee import *
 import datetime
 
-db = SqliteDatabase("test.db")
+db = SqliteDatabase("test.db", pragmas={'foreign_keys': 1})
 
 
 class BaseModel(Model):
@@ -16,6 +16,8 @@ class RegisteredUser(BaseModel):
     deleted_at = DateTimeField(null=True)
     # (whitelisting jeder whitelisted wen anders) send_friend_invites_per_dm = BooleanField(default=False)
     everyone_allowed_per_default = BooleanField(default=True)
+    # dm notifications new debt
+    # dm notifications new debt übertragung
 
 
 class IgnoreUsers(BaseModel):
@@ -49,13 +51,18 @@ class GuildChannel(BaseModel):
 
 class Debt(BaseModel):
     id: TextField(primary_key=True)
-    name: TextField(null=True)
+    name: TextField(null=True) # not loaded??????
     description = TextField(null=True)
     guild_channel = ForeignKeyField(GuildChannel, null=True)
     message_id = IntegerField(null=True)
     deleted_at = DateTimeField(null=True)
-    creditor = ForeignKeyField(RegisteredUser, null=False)
+    creditor = ForeignKeyField(RegisteredUser, null=False, backref="debts_given")
 
+
+class DebtProof(BaseModel):
+    # peewee automatically adds auto increment id field
+    debt = ForeignKeyField(Debt, null=False)
+    url = TextField(null=False)
 
 class DebtRoleTarget(BaseModel):
     debt = ForeignKeyField(Debt, null=False)
