@@ -12,23 +12,23 @@ class BaseModel(Model):
 
 
 class RegisteredUser(BaseModel):
-    id = TextField(primary_key=True)
+    id = IntegerField(primary_key=True)
     deleted_at = DateTimeField(null=True)
     # (whitelisting jeder whitelisted wen anders) send_friend_invites_per_dm = BooleanField(default=False)
-    everyone_allowed_per_default = BooleanField(default=False)
+    everyone_allowed_per_default = BooleanField(default=True)
 
 
 class IgnoreUsers(BaseModel):
-    by = ForeignKeyField(RegisteredUser)
-    ignored = TextField(null=False)
+    by = ForeignKeyField(RegisteredUser, backref="ignored")
+    ignored = ForeignKeyField(RegisteredUser, backref="ignored_by")
 
     class Meta:
         primary_key = CompositeKey('by', 'ignored')
 
 
 class WhitelistUser(BaseModel):
-    by = ForeignKeyField(RegisteredUser)
-    whitelisted = TextField(null=False)
+    by = ForeignKeyField(RegisteredUser, backref="whitelisted")
+    whitelisted = ForeignKeyField(RegisteredUser, backref="whitelisted_by")
 
     class Meta:
         primary_key = CompositeKey('by', 'whitelisted')
