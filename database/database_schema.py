@@ -70,7 +70,7 @@ class MoneyWriteGroup(BaseModel):
 
 
 # EXAMPLE:
-# from_user: 1, to_user: 2, cent_amount: 1000
+# from_user: 1, to_user: 2, cent_amount: -1000
 # means:
 # - 1 gives 2 10$
 # - 1 gives 2 10$ in credit
@@ -89,6 +89,13 @@ class MoneyWrite(BaseModel):
             SQL("UNIQUE (group_id, from_user_id, to_user_id)"),
             SQL("FOREIGN KEY (group_id, from_user_id, to_user_id) " +
                 " REFERENCES money_write(group_id, to_user_id, from_user_id)")]
+
+
+### Table Audit Log
+# Records: creation, editing, and deletion of money writes
+# including all attributes by editing with json
+
+# editing money amount after 10 minutes requires approval of other person?
 
 
 def init():
