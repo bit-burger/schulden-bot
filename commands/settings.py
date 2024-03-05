@@ -1,7 +1,7 @@
 import discord
 
 from database.database_schema import RegisteredUser
-from .util import check_register
+from .legacy_utils import check_register
 from config import tree
 from discord import ui, Interaction
 
