@@ -9,6 +9,7 @@ class BaseModel(Model):
 
     class Meta:
         database = db
+        strict_table = True
 
 
 class RegisteredUser(BaseModel):
@@ -49,42 +50,47 @@ class GuildChannel(BaseModel):
     guild = IntegerField(null=True)
 
 
-class Debt(BaseModel):
-    id: TextField(primary_key=True)
-    name: TextField(null=True) # not loaded??????
+# class DebtRoleTarget(BaseModel):
+#     debt = ForeignKeyField(Debt, null=False)
+#     role_id = IntegerField(null=False)
+#     role_name = TextField(null=False)
+#
+#     class Meta:
+#         primary_key = CompositeKey('debt', 'role_id')
+
+
+class MoneyWriteGroup(BaseModel):
+    id = TextField(primary_key=True)
     description = TextField(null=True)
-    guild_channel = ForeignKeyField(GuildChannel, null=True)
-    message_id = IntegerField(null=True)
+    picture = TextField(null=True)
     deleted_at = DateTimeField(null=True)
-    creditor = ForeignKeyField(RegisteredUser, null=False, backref="debts_given")
+    guild_channel = ForeignKeyField(GuildChannel, null=True)
+    type = TextField()  # money_give, credit, group_credit (maybe schuldenaustausch: switch von schulden von min. 3 person)
+    created_by = ForeignKeyField(RegisteredUser)
 
 
-class DebtProof(BaseModel):
-    # peewee automatically adds auto increment id field
-    debt = ForeignKeyField(Debt, null=False)
-    url = TextField(null=False)
-
-class DebtRoleTarget(BaseModel):
-    debt = ForeignKeyField(Debt, null=False)
-    role_id = IntegerField(null=False)
-    role_name = TextField(null=False)
-
-    class Meta:
-        primary_key = CompositeKey('debt', 'role_id')
-
-
-class DebtUserTarget(BaseModel):
-    debt = ForeignKeyField(Debt, null=False)
-    debtor = ForeignKeyField(RegisteredUser, null=False)
+# EXAMPLE:
+# from_user: 1, to_user: 2, cent_amount: 1000
+# means:
+# - 1 gives 2 10$
+# - 1 gives 2 10$ in credit
+# - 2 owes 1 10$
+class MoneyWrite(BaseModel):
+    group = ForeignKeyField(MoneyWriteGroup)
+    from_user = ForeignKeyField(RegisteredUser, backref="money_writes")
+    to_user = ForeignKeyField(RegisteredUser)
+    cent_amount = IntegerField()
     specific_description = TextField(null=True)
-    # if cent_amount is positive this is money that the debtor owes [the creditor]
-    # if cent_amount is negative this is money that the debtor has paid [the creditor]
-    cent_amount = IntegerField(null=False) # constraints=["cent_amount <> 0"]
 
     class Meta:
-        primary_key = CompositeKey('debt', 'debtor')
+        table_name = "money_write"
+        # primary_key = CompositeKey('group', 'from_user', 'to_user')
+        constraints = [
+            SQL("UNIQUE (group_id, from_user_id, to_user_id)"),
+            SQL("FOREIGN KEY (group_id, from_user_id, to_user_id) " +
+                " REFERENCES money_write(group_id, to_user_id, from_user_id)")]
 
 
 def init():
     db.connect()
-    db.create_tables([RegisteredUser, GuildChannel, Debt, DebtRoleTarget, DebtUserTarget, IgnoreUsers, WhitelistUser])
+    db.create_tables([RegisteredUser, GuildChannel, MoneyWriteGroup, MoneyWrite, IgnoreUsers, WhitelistUser])
