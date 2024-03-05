@@ -19,7 +19,9 @@ def user_balance_cte(user: RegisteredUser):
     return (user.money_writes
             .select(user_id_column, cent_amount_column)
             .join(to_user_alias, on=MoneyWrite.to_user == to_user_alias.id)
-            .where(user.everyone_allowed_per_default | user_id_column.in_(whitelist_query))
+            .switch(MoneyWrite)
+            .join(MoneyWriteGroup)
+            .where(MoneyWriteGroup.deleted_at.is_null() & (user.everyone_allowed_per_default | user_id_column.in_(whitelist_query)))
             .group_by(user_id_column)).cte('money_write_nets', columns=('user_id', 'cent_amount'))
 
 
