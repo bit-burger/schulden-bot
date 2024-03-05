@@ -1,9 +1,5 @@
 import discord
 import config
-import commands
-from database import init
-
-init()
 
 
 @config.client.event

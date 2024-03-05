@@ -2,7 +2,7 @@ import discord
 
 import config
 from config import tree
-from database import RegisteredUser
+from database.database_schema import RegisteredUser
 
 
 # write that this allowes the application to save user data, until unregisertering

@@ -2,9 +2,9 @@ import discord
 from discord import ui, SelectOption, ButtonStyle, Emoji, PartialEmoji, Interaction
 from discord._types import ClientT
 from discord.abc import MISSING
-from typing import Callable, Optional, Iterator, Any, Awaitable
+from typing import Callable, Iterator, Any, Awaitable
 
-from database import RegisteredUser
+from database.database_schema import RegisteredUser
 
 
 def check_register(interaction: discord.Interaction) -> RegisteredUser:

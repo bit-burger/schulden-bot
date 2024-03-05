@@ -1,4 +1,4 @@
-from database import *
+from database.database_schema import *
 from peewee import *
 
 
@@ -37,7 +37,7 @@ def user_balance(user: RegisteredUser, credit_first: bool, page_size: int, page:
             .paginate(page + 1, page_size).dicts())
 
 
-# gives back (credit, debt)
+# gives back (credit, database)
 def user_credit_and_debt(user: RegisteredUser) -> (int, int):
     cte = user_balance_cte(user)
     # select on cte instead of with_cte ?

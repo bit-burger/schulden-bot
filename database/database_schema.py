@@ -1,7 +1,7 @@
 from peewee import *
 import datetime
 
-db = SqliteDatabase("test.db", pragmas={'foreign_keys': 1})
+from config import db
 
 
 class BaseModel(Model):
@@ -17,8 +17,8 @@ class RegisteredUser(BaseModel):
     deleted_at = DateTimeField(null=True)
     # (whitelisting jeder whitelisted wen anders) send_friend_invites_per_dm = BooleanField(default=False)
     everyone_allowed_per_default = BooleanField(default=True)
-    # dm notifications new debt
-    # dm notifications new debt übertragung
+    # dm notifications new database
+    # dm notifications new database übertragung
 
 
 class IgnoreUsers(BaseModel):
@@ -51,12 +51,12 @@ class GuildChannel(BaseModel):
 
 
 # class DebtRoleTarget(BaseModel):
-#     debt = ForeignKeyField(Debt, null=False)
+#     database = ForeignKeyField(Debt, null=False)
 #     role_id = IntegerField(null=False)
 #     role_name = TextField(null=False)
 #
 #     class Meta:
-#         primary_key = CompositeKey('debt', 'role_id')
+#         primary_key = CompositeKey('database', 'role_id')
 
 
 class MoneyWriteGroup(BaseModel):

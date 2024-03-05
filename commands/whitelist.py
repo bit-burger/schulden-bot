@@ -2,18 +2,12 @@ from typing import Iterator
 
 import discord
 
-from database import RegisteredUser, WhitelistUser
+from database.database_schema import RegisteredUser, WhitelistUser
 from . import util
-from .util import check_register, check_register_from_id, ApplicationView, UserSelect, Button
+from .util import check_register, check_register_from_id, UserSelect, Button
 from config import tree
-from discord import ui, Interaction, app_commands, ButtonStyle
+from discord import ui, ButtonStyle
 
-
-# whitelist_group = app_commands.Group(name="whitelist", description="if enabled, manage whitelisting to control with "
-#                                                                    "whom you can track debt")
-# tree.add_command(whitelist_group)
-#
-#
 
 @tree.command(name="whitelist_view", description="view all whitelisted users",
               guild=discord.Object(id=1201588191094906890))
@@ -122,7 +116,7 @@ class WhitelistUserReset(ui.View):
 
 
 @tree.command(name='whitelist_add', description="whitelist users to track debt", guild=discord.Object(
-    id=1201588191094906890))  # @whitelist_group.command(name='add', description="whitelist users to track debt")
+    id=1201588191094906890))
 async def whitelist(interaction: discord.Interaction):
     user = check_register(interaction)
     if (user.everyone_allowed_per_default):
