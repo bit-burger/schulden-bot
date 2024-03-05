@@ -4,7 +4,7 @@ import discord
 
 from database.database_schema import RegisteredUser, WhitelistUser
 from . import utils
-from .utils import check_register, check_register_from_id, UserSelect, Button
+from .utils import *
 from config import tree
 from discord import ui, ButtonStyle
 
@@ -37,10 +37,10 @@ async def whitelist_reset(interaction: discord.Interaction):
               guild=discord.Object(id=1201588191094906890))
 async def whitelist_remove(interaction: discord.Interaction):
     user = check_register(interaction)
-    await util.run_application(interaction, WhitelistRemoveApp(("selecting", set()), user))
+    await run_application(interaction, WhitelistRemoveApp(("selecting", set()), user))
 
 
-class WhitelistRemoveApp(util.ApplicationView):
+class WhitelistRemoveApp(ApplicationView):
 
     async def select(self, i, s: UserSelect):
         whitelisted = set(map(lambda whitelisted: whitelisted.whitelisted.id, self.user.whitelisted))
