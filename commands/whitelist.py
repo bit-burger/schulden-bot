@@ -3,8 +3,8 @@ from typing import Iterator
 import discord
 
 from database.database_schema import RegisteredUser, WhitelistUser
-from . import legacy_utils
-from .legacy_utils import check_register, check_register_from_id, UserSelect, Button
+from . import utils
+from .utils import check_register, check_register_from_id, UserSelect, Button
 from config import tree
 from discord import ui, ButtonStyle
 

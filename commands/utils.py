@@ -8,24 +8,12 @@ from database.database_schema import RegisteredUser
 
 
 def check_register(interaction: discord.Interaction) -> RegisteredUser:
-    user, created = RegisteredUser.get_or_create(id=interaction.user.id)
+    return check_register_from_id(interaction.user.id)
+
+
+def check_register_from_id(id_: int) -> RegisteredUser:
+    user, created = RegisteredUser.get_or_create(id=id_)
     return user
-
-
-def check_register_from_id(id: int) -> RegisteredUser:
-    user, created = RegisteredUser.get_or_create(id=id)
-    return user
-
-
-class ApplicationState:
-    item_list: [ui.Item]
-    embed: discord.Embed
-    message_string: str
-
-    def __init__(self, item_list: [ui.Item], embed: discord.Embed, message_string: str):
-        self.item_list = item_list
-        self.embed = embed
-        self.message_string = message_string
 
 
 class Select(ui.Select):
@@ -79,19 +67,11 @@ class UserSelect(ui.UserSelect):
         await self.callable(interaction, self)
 
 
-class Application(ui.View):
-    def __init__(self, state: any):
-        super().__init__()
-        self.state = state
-
-    # def renderTimeout(self) -> ApplicationState:
-    #     ...
-
-
 class ApplicationView(ui.View):
     _state: any
     user: RegisteredUser
     _interaction: discord.Interaction | None
+    is_initial = True
 
     @property
     def state(self):
@@ -99,7 +79,7 @@ class ApplicationView(ui.View):
 
     async def set_state(self, state: any, interaction: discord.Interaction):
         self._state = state
-        await self._render(interaction, is_initial=False)
+        await self._render(interaction, to_render=self.render())
 
     def __init__(self, state: any, user: RegisteredUser, ephemeral: bool = True):
         super().__init__()
@@ -107,11 +87,11 @@ class ApplicationView(ui.View):
         self._state = state
         self.user = user
 
-    async def _render(self, interaction: discord.Interaction, is_initial: bool):
+    async def _render(self, interaction: discord.Interaction, to_render: Iterator[str | discord.Embed | ui.Item]):
         self.clear_items()
         embed = None
         message_str = None
-        for component in self.render():
+        for component in to_render:
             if isinstance(component, discord.Embed):
                 embed = component
             if isinstance(component, str):
@@ -119,15 +99,24 @@ class ApplicationView(ui.View):
             if isinstance(component, ui.Item):
                 self.add_item(component)
 
-        if is_initial:
+        self._interaction = interaction
+        if self.is_initial:
             await interaction.response.send_message(embed=embed, view=self, content=message_str,
                                                     ephemeral=self.ephemeral)
-            self._interaction = interaction
+            self.is_initial = False
         else:
             await interaction.response.edit_message(embed=embed, view=self, content=message_str)
 
     def render(self) -> Iterator[str | discord.Embed | ui.Item]:
         ...
+
+    def timeout_render(self):
+        yield discord.Embed(title="Timeout",
+                            description="Sorry, this interaction has timeouted, please call this command again",
+                            color=0xFF0000)
+
+    def on_timeout(self) -> None:
+        self._render(self._interaction, self.timeout_render())
 
 
 async def run_application(interaction: discord.Interaction, application: ApplicationView):
