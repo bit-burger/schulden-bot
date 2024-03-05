@@ -30,7 +30,7 @@ def user_balance(user: RegisteredUser, credit_first: bool, page_size: int, page:
     order_column = cte.c.cent_amount
     if not credit_first:
         order_column = order_column.desc()
-    return RegisteredUser.join(cte, on=cte.c.user_id == RegisteredUser.id).order_by(order_column).paginate(page + 1, page_size).with_cte(cte)
+    return RegisteredUser.select(RegisteredUser.id, cte.c.cent_amount).join(cte, on=cte.c.user_id == RegisteredUser.id).order_by(order_column).paginate(page + 1, page_size).with_cte(cte).dicts()
 
 def user_credit_and_debt(user: RegisteredUser) -> (int, int):
     cte = user_balance_query(user).cte('money_write_nets', columns=('user_id', 'cent_amount'))
@@ -40,4 +40,4 @@ def user_credit_and_debt(user: RegisteredUser) -> (int, int):
     debt = RegisteredUser.select(fn.sum(cte.c.cent_amount)).join(cte, on=cte.c.user_id == RegisteredUser.id).where(
         cte.c.cent_amount < 0).with_cte(cte)
 
-    return (credit[0].cent_amount, debt[0].cent_amount) # use .tuples() ?
+    return credit[0].cent_amount or 0, debt[0].cent_amount or 0  # use .tuples() ?
