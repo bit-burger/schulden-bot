@@ -16,6 +16,18 @@ def check_register_from_id(id_: int) -> RegisteredUser:
     return user
 
 
+async def send_error_embed(interaction: Interaction, title: str = None, description: str = None):
+    await interaction.response.send_message(discord.Embed(title=title, description=description, color=0xFF0000))
+
+
+async def send_success_embed(interaction: Interaction, title: str = None, description: str = None):
+    await interaction.response.send_message(discord.Embed(title=title, description=description, color=0x00FF00))
+
+
+def format_euro(cent: int) -> str:
+    return f"{cent // 100}.{cent % 100}€"
+
+
 class Select(ui.Select):
     def __init__(self, _callable: Callable[[discord.Interaction, discord.ui.Select], Awaitable[None]],
                  custom_id: str = MISSING,
