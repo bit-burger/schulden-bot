@@ -10,8 +10,12 @@ async def on_ready():
 
 @config.client.event
 async def on_message(message: discord.Message):
+    import random
+    content = 'schulderinos 😎'
+    if bool(random.getrandbits(1)):
+        content = 'schulderinos 🤙'
     if not message.author.bot and message.author != config.client and config.client.user.mentioned_in(message):
-        await message.channel.send('schulderinos 😎')
+        await message.reply(content)
 
 
 config.client.run(config.token)
