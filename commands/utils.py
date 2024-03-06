@@ -1,8 +1,10 @@
+import re
+
 import discord
 from discord import ui, SelectOption, ButtonStyle, Emoji, PartialEmoji, Interaction
 from discord._types import ClientT
 from discord.abc import MISSING
-from typing import Callable, Iterator, Any, Awaitable
+from typing import Callable, Iterator, Any, Awaitable, Optional
 
 from database.database_schema import RegisteredUser
 
@@ -17,15 +19,35 @@ def check_register_from_id(id_: int) -> RegisteredUser:
 
 
 async def send_error_embed(interaction: Interaction, title: str = None, description: str = None):
-    await interaction.response.send_message(discord.Embed(title=title, description=description, color=0xFF0000))
+    await interaction.response.send_message(embed=discord.Embed(title=title, description=description, color=0xFF0000))
 
 
 async def send_success_embed(interaction: Interaction, title: str = None, description: str = None):
-    await interaction.response.send_message(discord.Embed(title=title, description=description, color=0x00FF00))
+    await interaction.response.send_message(embed=discord.Embed(title=title, description=description, color=0x00FF00))
 
 
 def format_euro(cent: int) -> str:
-    return f"{cent // 100}.{cent % 100}€"
+    after_point = str(cent % 100)
+    if after_point == "0":
+        after_point = "00"
+    return f"{cent // 100}.{after_point}€"
+
+
+euro_regex = re.compile(r"(?=.?\d)\d*[.,]?\d{0,2}")
+euro_split_regex = re.compile("[,.]")
+
+
+def str_to_euro_cent(s: str) -> Optional[int]:
+    s = s.replace(" ", "").replace("\t", "").replace("\n", "")
+    if not euro_regex.fullmatch(s):
+        return None
+    split = euro_split_regex.split(s)
+    val = 0
+    if split[0] != "":
+        val = int(split[0]) * 100
+    if len(split) > 1 and split[1] != "":
+        val += int(split[1])
+    return val
 
 
 class Select(ui.Select):
