@@ -2,9 +2,11 @@ import string
 import random
 from typing import Optional, Literal
 from functools import partial
+import asyncio
 
 from discord import Interaction, Embed, app_commands, Member
 
+from .attachment import image_listener
 from .utils import *
 from config import tree
 from database.database_schema import MoneyWriteGroup, MoneyWrite
@@ -27,15 +29,19 @@ from database.permissions import can_send
     amount="the amount of money that you owe",
     who="Who you owe the money",
     description="why you owe this money",
-    attachment="an attachment for the debt (could be a photo of a receipt)",
+    image="an attachment for the debt (could be a photo of a receipt)",
 )
 async def owe(i: discord.Interaction, amount: str, who: discord.Member, description: Optional[str],
-              attachment: Optional[discord.Attachment]):
+              image: Optional[discord.Attachment]):
+    if len(description or "") > 1000:
+        return await send_error_embed(i, title="Description too long",
+                                      description=f"should contain max 1000 characters, "
+                                                  f"but contains {len(description)} characters")
     cent_amount = str_to_euro_cent(amount)
     if who.id == i.user.id:
-        return await send_error_embed(i, title="You can't owe your self")
+        return await send_error_embed(i, title="You can't owe yourself!")
     if who.bot:
-        return await send_error_embed(i, title="You can't owe a bot")
+        return await send_error_embed(i, title="You can't owe a bot!")
     if not cent_amount:
         return await send_error_embed(i, title="Not a valid amount",
                                       description=f"'**{amount}**' is not a positive sum of euro and euro cent")
@@ -48,8 +54,8 @@ async def owe(i: discord.Interaction, amount: str, who: discord.Member, descript
         return await send_success_embed(i, title="Cannot owe this user money",
                                         description="you have blocked or not whitelisted this user")
     url = None
-    if attachment is not None:
-        url = attachment.url
+    if image is not None:
+        url = image.url
     app = DebtCommandView(
         user=user,
         member=i.user,
@@ -80,6 +86,12 @@ class DebtCommandView(ApplicationView):
         self.url = url
         self.give = give
         self.type = type
+        self.error = None
+        image_listener.add_listener(self.user.id, self)
+
+    def event(self, url):
+        self.url = url
+        asyncio.run(self.set_state("finished", self.last_interaction, follow_up=True))
 
     def render(self):
         match self.state:
@@ -115,7 +127,17 @@ class DebtCommandView(ApplicationView):
         await self.set_state("confirmation", i)
 
     async def change_amount(self, i, b):
+        await i.response.send_modal(AmountModal(self))
+
+    async def change_amount_confirm(self, i, raw_amount):
+        amount = str_to_euro_cent(raw_amount)
+        if amount is None:
+            self.error = "amount could not be changed as 'raw_amount' is not a real"
+            return
+        if amount == 0:
+            self.error = "amount could not be changed as amount has to be positive"
         self.raw_cent_amount = None
+        self.cent_amount = amount
         await self.set_state("confirmation", i)
 
     async def change_amount_by(self, by: int, i, b):
@@ -125,7 +147,6 @@ class DebtCommandView(ApplicationView):
 
     async def change_description(self, i, b):
         await i.response.send_modal(DescriptionModal(self, self.description))
-        await self.set_state("confirmation", i)
 
     async def change_description_confirm(self, i, description):
         self.description = description
@@ -140,7 +161,8 @@ class DebtCommandView(ApplicationView):
         await self.set_state("confirmation", i)
 
     def render_confirmation(self):
-        embed = Embed(title="Confirmation", description=self.confirmation_text())
+        embed = Embed(title="Confirmation",
+                      description=self.confirmation_text() + ", after confirming you cannot change anything")
         yield Button(label="Confirm", style=ButtonStyle.green, _callable=self.confirm, row=0)
         yield Button(label="Cancel", style=ButtonStyle.red, _callable=self.cancel, row=0)
         embed.add_field(name="direction", value=self.direction_text(), inline=False)
@@ -179,9 +201,15 @@ class DebtCommandView(ApplicationView):
         else:
             yield Button(label="add description", style=ButtonStyle.blurple, _callable=self.change_description, row=3)
         if self.url:
-            embed.add_field(name="picture", value="", inline=False)
+            embed.add_field(name="image:", value="to edit image use: " + mention_slash_command("add_image"),
+                            inline=False)
             embed.set_image(url=self.url)
             yield Button(label="delete picture", style=ButtonStyle.blurple, _callable=self.delete_picture, row=4)
+        else:
+            embed.add_field(name="image:", value="to add image use: " + mention_slash_command("add_image"),
+                            inline=False)
+        if self.error:
+            embed.set_footer(text=self.error)
         yield embed
 
     def direction_text(self):
@@ -207,10 +235,13 @@ class DebtCommandView(ApplicationView):
             return f"Do you want to confirm that {a} gave you {m}?"
         if not self.give:
             return f"Do you want to confirm that you owe {m} {a}"
-        return f"DO you want to confirm that {m} owes you {a}"
+        return f"Do you want to confirm that {m} owes you {a}"
 
     def render_finished(self):
         yield "finished"
+
+    def clean_up(self):
+        image_listener.remove_listener(self.user.id, self)
 
 
 class DescriptionModal(discord.ui.Modal):
@@ -224,12 +255,30 @@ class DescriptionModal(discord.ui.Modal):
             label='description',
             placeholder='description for the money...',
             default=self.old_description,
-            style=discord.TextStyle.long
+            style=discord.TextStyle.long,
+            max_length=1000
         )
         self.add_item(self.name)
 
     async def on_submit(self, interaction: discord.Interaction):
         await self.debt_command_view.change_description_confirm(interaction, self.name.value)
+
+
+class AmountModal(discord.ui.Modal):
+
+    def __init__(self, debt_command_view: DebtCommandView):
+        super().__init__(title="change description")
+        self.debt_command_view = debt_command_view
+
+        self.name = discord.ui.TextInput(
+            label='amount',
+            placeholder='amount of money...',
+            max_length=30
+        )
+        self.add_item(self.name)
+
+    async def on_submit(self, interaction: discord.Interaction):
+        await self.debt_command_view.change_amount_confirm(interaction, self.name.value)
 
 # @tree.command(name='give')
 # @tree.command(name='accept')

@@ -6,6 +6,8 @@ from discord._types import ClientT
 from discord.abc import MISSING
 from typing import Callable, Iterator, Any, Awaitable, Optional
 
+import config
+from config import client
 from database.database_schema import RegisteredUser
 
 
@@ -28,8 +30,8 @@ async def send_success_embed(interaction: Interaction, title: str = None, descri
 
 def format_euro(cent: int) -> str:
     after_point = str(cent % 100)
-    if after_point == "0":
-        after_point = "00"
+    if len(after_point) == 1:
+        after_point = "0" + after_point
     return f"{cent // 100}.{after_point}€"
 
 
@@ -38,7 +40,7 @@ euro_split_regex = re.compile("[,.]")
 
 
 def str_to_euro_cent(s: str) -> Optional[int]:
-    s = s.replace(" ", "").replace("\t", "").replace("\n", "")
+    s = s.replace(" ", "").replace("\t", "").replace("\n", "").replace("€", "")
     if not euro_regex.fullmatch(s):
         return None
     split = euro_split_regex.split(s)
@@ -46,8 +48,19 @@ def str_to_euro_cent(s: str) -> Optional[int]:
     if split[0] != "":
         val = int(split[0]) * 100
     if len(split) > 1 and split[1] != "":
-        val += int(split[1])
+        if len(split[1]) == 1:
+            val += int(split[1]) * 10
+        else:
+            val += int(split[1])
     return val
+
+
+def get_id_of_slash_command(name: str):
+    return next(c for c in config.commands if c.name == name).id
+
+
+def mention_slash_command(name: str):
+    return f"</{name}:{get_id_of_slash_command(name)}>"
 
 
 class Select(ui.Select):
@@ -104,16 +117,16 @@ class UserSelect(ui.UserSelect):
 class ApplicationView(ui.View):
     _state: any
     user: RegisteredUser
-    _interaction: discord.Interaction | None
+    last_interaction: discord.Interaction | None
     is_initial = True
 
     @property
     def state(self):
         return self._state
 
-    async def set_state(self, state: any, interaction: discord.Interaction):
+    async def set_state(self, state: any, interaction: discord.Interaction, follow_up=False):
         self._state = state
-        await self._render(interaction, to_render=self.render())
+        await self._render(interaction, to_render=self.render(), follow_up=follow_up)
 
     def __init__(self, state: any, user: RegisteredUser, ephemeral: bool = True, timeout: Optional[int] = None):
         super().__init__(timeout=timeout)
@@ -121,7 +134,8 @@ class ApplicationView(ui.View):
         self._state = state
         self.user = user
 
-    async def _render(self, interaction: discord.Interaction, to_render: Iterator[str | discord.Embed | ui.Item]):
+    async def _render(self, interaction: discord.Interaction, to_render: Iterator[str | discord.Embed | ui.Item],
+                      follow_up=False):
         self.clear_items()
         embed = None
         message_str = None
@@ -133,8 +147,11 @@ class ApplicationView(ui.View):
             if isinstance(component, ui.Item):
                 self.add_item(component)
 
-        self._interaction = interaction
-        if self.is_initial:
+        self.last_interaction = interaction
+        if follow_up:
+            response = await interaction.original_response()
+            await interaction.followup.send(embed=embed, view=self, content=message_str)
+        elif self.is_initial:
             await interaction.response.send_message(embed=embed, view=self, content=message_str,
                                                     ephemeral=self.ephemeral)
             self.is_initial = False
@@ -144,13 +161,25 @@ class ApplicationView(ui.View):
     def render(self) -> Iterator[str | discord.Embed | ui.Item]:
         ...
 
-    def render_timeout(self):
-        yield discord.Embed(title="Timeout",
-                            description="Sorry, this interaction has timeouted, please call this command again",
-                            color=0xFF0000)
 
-    def on_timeout(self) -> None:
-        self._render(self._interaction, self.render_timeout())
+def render_timeout(self):
+    yield discord.Embed(title="Timeout",
+                        description="Sorry, this interaction has timeouted, please call this command again",
+                        color=0xFF0000)
+
+
+def on_timeout(self) -> None:
+    self.clean_up()
+    self._render(self.last_interaction, self.render_timeout())
+
+
+def stop(self) -> None:
+    self.clean_up()
+    super().stop()
+
+
+def clean_up(self):
+    ...
 
 
 async def run_application(interaction: discord.Interaction, application: ApplicationView):
@@ -165,3 +194,24 @@ def to_id_set(users: [discord.User | discord.Member]) -> {int}:
 
 def id_iter_to_text(ids: {int}) -> str:
     return ",".join(map(lambda id: "<@" + str(id) + ">", ids))
+
+
+def attachment_is_image(attachment: discord.Attachment):
+    return attachment.content_type.startswith("image/") or attachment.content_type == "application/pdf"
+
+
+class UserListener:
+    listeners = {}
+
+    def add_listener(self, user_id, listener):
+        self.listeners[user_id] = listener
+
+    def remove_listener(self, user_id):
+        if user_id in self.listeners:
+            self.listeners.pop(user_id)
+
+    def exists_listener_for_user(self, user_id):
+        return user_id in self.listeners
+
+    def add_event(self, user_id, event):
+        self.listeners[user_id].event(event)

@@ -4,7 +4,7 @@ import commands
 
 @config.client.event
 async def on_ready():
-    await config.tree.sync(guild=discord.Object(id=1201588191094906890))
+    config.commands = await config.tree.sync(guild=discord.Object(id=1201588191094906890))
     print(f'We have logged in as {config.client.user}')
 
 
