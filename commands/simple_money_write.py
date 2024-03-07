@@ -124,7 +124,7 @@ class DebtCommandView(ApplicationView):
         await self.set_state("confirmation", i)
 
     async def change_description(self, i, b):
-        await i.response.send_modal(DescriptionModal(self))
+        await i.response.send_modal(DescriptionModal(self, self.description))
         await self.set_state("confirmation", i)
 
     async def change_description_confirm(self, i, description):
@@ -215,14 +215,18 @@ class DebtCommandView(ApplicationView):
 
 class DescriptionModal(discord.ui.Modal):
 
-    def __init__(self, debt_command_view: DebtCommandView):
+    def __init__(self, debt_command_view: DebtCommandView, old_description: str | None):
         super().__init__(title="change description")
         self.debt_command_view = debt_command_view
+        self.old_description = old_description
 
-    name = discord.ui.TextInput(
-        label='description',
-        placeholder='description for the money...'
-    )
+        self.name = discord.ui.TextInput(
+            label='description',
+            placeholder='description for the money...',
+            default=self.old_description,
+            style=discord.TextStyle.long
+        )
+        self.add_item(self.name)
 
     async def on_submit(self, interaction: discord.Interaction):
         await self.debt_command_view.change_description_confirm(interaction, self.name.value)
