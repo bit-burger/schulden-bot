@@ -59,7 +59,7 @@ async def owe(i: discord.Interaction, amount: str, who: discord.Member, descript
         raw_cent_amount=amount,
         cent_amount=cent_amount,
         url=url,
-        give=False,
+        give=True,
         type="credit"
     )
     await run_application(i, app)
@@ -192,8 +192,8 @@ class DebtCommandView(ApplicationView):
         return f"{a}`--{"owes" if self.type == "credit" else "payed"}-->`{b}"
 
     def toggled_readable_direction_text(self):
-        a = f"@{self.to_member.name}"
-        b = f"@{self.member.name}"
+        a = f"@{self.to_member.display_name}"
+        b = f"@{self.member.display_name}"
         if not self.give:
             a, b = b, a
         return f"{a}--{"owes" if self.type == "credit" else "payed"}-->{b}"
