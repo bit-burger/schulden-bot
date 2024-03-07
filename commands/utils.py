@@ -115,8 +115,8 @@ class ApplicationView(ui.View):
         self._state = state
         await self._render(interaction, to_render=self.render())
 
-    def __init__(self, state: any, user: RegisteredUser, ephemeral: bool = True):
-        super().__init__()
+    def __init__(self, state: any, user: RegisteredUser, ephemeral: bool = True, timeout: Optional[int] = None):
+        super().__init__(timeout=timeout)
         self.ephemeral = ephemeral
         self._state = state
         self.user = user
@@ -144,17 +144,17 @@ class ApplicationView(ui.View):
     def render(self) -> Iterator[str | discord.Embed | ui.Item]:
         ...
 
-    def timeout_render(self):
+    def render_timeout(self):
         yield discord.Embed(title="Timeout",
                             description="Sorry, this interaction has timeouted, please call this command again",
                             color=0xFF0000)
 
     def on_timeout(self) -> None:
-        self._render(self._interaction, self.timeout_render())
+        self._render(self._interaction, self.render_timeout())
 
 
 async def run_application(interaction: discord.Interaction, application: ApplicationView):
-    await application._render(interaction, is_initial=True)
+    await application._render(interaction, application.render())
 
     # def on_timeout(self) -> None:
 
