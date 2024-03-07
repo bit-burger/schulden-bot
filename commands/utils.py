@@ -129,7 +129,7 @@ class ApplicationView(ui.View):
             if isinstance(component, discord.Embed):
                 embed = component
             if isinstance(component, str):
-                message_str = str
+                message_str = component
             if isinstance(component, ui.Item):
                 self.add_item(component)
 
