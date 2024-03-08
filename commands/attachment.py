@@ -7,7 +7,8 @@ from config import tree
 image_listener = UserListener()
 
 
-@tree.command(name='add_image', description="add image or pdf to last supporting command you have been using",
+@tree.command(name='add_image', description="add image or pdf (will be converted to image) to last supporting command "
+                                            "you have been using",
               guild=discord.Object(id=1201588191094906890))
 @app_commands.describe(
     image="the image to add"

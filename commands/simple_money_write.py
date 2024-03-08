@@ -1,16 +1,16 @@
-import string
-import random
-from typing import Optional, Literal
-from functools import partial
 import asyncio
+import random
+import string
+from functools import partial
+from typing import Literal
 
-from discord import Interaction, Embed, app_commands, Member
+from discord import Embed, app_commands, Member
 
-from .attachment import image_listener
-from .utils import *
 from config import tree
 from database.database_schema import MoneyWriteGroup, MoneyWrite
 from database.permissions import can_send
+from .attachment import image_listener
+from .utils import *
 
 
 # all commands:
@@ -23,35 +23,30 @@ from database.permissions import can_send
 # idea: put direction and type into same field, and just two buttons
 # [Change to: @b--owe-->@a]   [Change to: @a--payed-->@b]
 
-@tree.command(name='owe', description="when you owe someone",
-              guild=discord.Object(id=1201588191094906890))
-@app_commands.describe(
-    amount="the amount of money that you owe",
-    who="Who you owe the money",
-    description="why you owe this money",
-    image="an attachment for the debt (could be a photo of a receipt)",
-)
-async def owe(i: discord.Interaction, amount: str, who: discord.Member, description: Optional[str],
-              image: Optional[discord.Attachment]):
+async def simple_money_write(i: discord.Interaction, amount: str, who: discord.Member, description: Optional[str],
+                             image: Optional[discord.Attachment], yourself_err, bot_err, non_wl_err, non_self_wl_err,
+                             give, type):
+    if image and not attachment_is_image(image):
+        return await send_error_embed(i, title="parameter 'image' only supports images or pdfs")
     if len(description or "") > 1000:
         return await send_error_embed(i, title="Description too long",
                                       description=f"should contain max 1000 characters, "
                                                   f"but contains {len(description)} characters")
     cent_amount = str_to_euro_cent(amount)
     if who.id == i.user.id:
-        return await send_error_embed(i, title="You can't owe yourself!")
+        return await send_error_embed(i, title=yourself_err)
     if who.bot:
-        return await send_error_embed(i, title="You can't owe a bot!")
+        return await send_error_embed(i, title=bot_err)
     if not cent_amount:
         return await send_error_embed(i, title="Not a valid amount",
                                       description=f"'**{amount}**' is not a positive sum of euro and euro cent")
     user = check_register(i)
     to_user = check_register_from_id(who.id)
     if not can_send(user, to_user):
-        return await send_success_embed(i, title="Cannot owe this user money",
+        return await send_success_embed(i, title=non_wl_err,
                                         description="user may have not whitelisted you")
     if not can_send(to_user, user):
-        return await send_success_embed(i, title="Cannot owe this user money",
+        return await send_success_embed(i, title=non_self_wl_err,
                                         description="you have blocked or not whitelisted this user")
     url = None
     if image is not None:
@@ -65,10 +60,83 @@ async def owe(i: discord.Interaction, amount: str, who: discord.Member, descript
         raw_cent_amount=amount,
         cent_amount=cent_amount,
         url=url,
-        give=True,
-        type="credit"
+        give=give,
+        type=type
     )
     await run_application(i, app)
+
+
+wl_you_str = "as they have not whitelisted you"
+wl_them_str = "as you have not whitelisted them"
+
+
+@tree.command(name='owe', description="register when you owe someone",
+              guild=discord.Object(id=1201588191094906890))
+@app_commands.describe(
+    amount="the amount of money that you owe",
+    who="Who you owe the money",
+    description="why you owe this money",
+    image="an attachment for the debt (could be a photo of a receipt)",
+)
+async def owe(i: discord.Interaction, amount: str, who: discord.Member, description: Optional[str],
+              image: Optional[discord.Attachment]):
+    await simple_money_write(
+        i, amount, who, description, image, "You can't owe yourself!", "You can't owe a bot!",
+        "Cannot register owing this user money, " + wl_you_str,
+        "Cannot register owing this user money, " + wl_them_str, False, "credit"
+    )
+
+
+@tree.command(name='give', description="register when you give someone money",
+              guild=discord.Object(id=1201588191094906890))
+@app_commands.describe(
+    amount="the amount of money that you have given",
+    who="Who you gave the money",
+    description="why you gave this money",
+    image="an attachment showing you gave this money (could be a photo of a receipt)",
+)
+async def give(i: discord.Interaction, amount: str, who: discord.Member, description: Optional[str],
+               image: Optional[discord.Attachment]):
+    await simple_money_write(
+        i, amount, who, description, image, "You can't register giving yourself money!",
+        "You can't register giving a bot money!",
+        "Cannot register giving this user money, " + wl_you_str,
+        "Cannot register giving this user money, " + wl_them_str, True, "money_give"
+    )
+
+
+@tree.command(name='debt', description="register when someone owes you money",
+              guild=discord.Object(id=1201588191094906890))
+@app_commands.describe(
+    amount="the amount of money that this user owes you",
+    who="Why they owe you this money",
+    description="why they you owe this money",
+    image="an attachment for the debt (could be a photo of a receipt)",
+)
+async def debt(i: discord.Interaction, amount: str, who: discord.Member, description: Optional[str],
+               image: Optional[discord.Attachment]):
+    await simple_money_write(
+        i, amount, who, description, image, "You can't owe yourself!", "You can't owe a bot!",
+        "Cannot register debt from this user, " + wl_you_str,
+        "Cannot register debt from this user, " + wl_them_str, True, "credit"
+    )
+
+
+@tree.command(name='accept', description="register when you accept money from someone",
+              guild=discord.Object(id=1201588191094906890))
+@app_commands.describe(
+    amount="the amount of money that you have accepted",
+    who="Who gave you the money",
+    description="why they gave you this money",
+    image="an attachment showing they gave you the money (could be a photo of a receipt)",
+)
+async def accept(i: discord.Interaction, amount: str, who: discord.Member, description: Optional[str],
+                 image: Optional[discord.Attachment]):
+    await simple_money_write(
+        i, amount, who, description, image, "You can't owe yourself!", "You can't owe a bot!",
+        "Cannot register accepting money from this user, " + wl_you_str,
+        "Cannot register accepting money from this user, " + wl_them_str, False, "money_give"
+    )
 
 
 class DebtCommandView(ApplicationView):
@@ -87,6 +155,8 @@ class DebtCommandView(ApplicationView):
         self.give = give
         self.type = type
         self.error = None
+        self.timestamp = None
+        self.unique_identifier = ''.join(random.choices(string.ascii_uppercase + string.digits, k=5))
         image_listener.add_listener(self.user.id, self)
 
     async def event(self, event):
@@ -118,15 +188,17 @@ class DebtCommandView(ApplicationView):
                 yield Embed(title="Canceled slash command")
 
     async def confirm(self, i, b):
-        # TODO: changeup depending on give/type
-        unique_identifier = ''.join(random.choices(string.ascii_uppercase + string.digits, k=5))
-        group = MoneyWriteGroup.create(id=unique_identifier, description=self.description, created_by=self.user,
-                                       type="credit",
+        group = MoneyWriteGroup.create(id=self.unique_identifier, description=self.description, created_by=self.user,
+                                       type=self.type,
                                        picture=self.url)
-        rows = [{'group': group, 'cent_amount': -self.cent_amount, 'from_user': self.user, 'to_user': self.to_user}, {
-            'group': group, 'cent_amount': self.cent_amount, 'from_user': self.to_user, 'to_user': self.user}]
+        cent_amount = self.cent_amount
+        if not self.give:
+            cent_amount *= -1
+        rows = [{'group': group, 'cent_amount': cent_amount, 'from_user': self.user, 'to_user': self.to_user}, {
+            'group': group, 'cent_amount': -cent_amount, 'from_user': self.to_user, 'to_user': self.user}]
         MoneyWrite.insert_many(rows).execute()
 
+        self.timestamp = int(group.created_at.timestamp())
         await self.set_state("finished", i)
 
     async def cancel(self, i, b):
@@ -230,14 +302,16 @@ class DebtCommandView(ApplicationView):
     def direction_text(self):
         a = f"<@{self.user.id}>"
         b = f"<@{self.to_user.id}>"
-        if not self.give:
+        # if self.give:
+        #     a, b = b, a
+        if self.give ^ (self.type == "money_give"):
             a, b = b, a
         return f"{a}`--{"owes" if self.type == "credit" else "payed"}-->`{b}"
 
     def toggled_readable_direction_text(self):
         a = f"@{self.to_member.display_name}"
         b = f"@{self.member.display_name}"
-        if not self.give:
+        if self.give ^ (self.type == "money_give"):
             a, b = b, a
         return f"{a}--{"owes" if self.type == "credit" else "payed"}-->{b}"
 
@@ -245,15 +319,28 @@ class DebtCommandView(ApplicationView):
         m = f"<@{self.to_user.id}>"
         a = f"**{format_euro(self.cent_amount)}**"
         if self.give and self.type == "money_give":
-            return f"Do you want to confirm giving {a} {m}?"
+            return f"Do you want to register that you gave {a} to {m}?"
         if self.type == "money_give":
-            return f"Do you want to confirm that {a} gave you {m}?"
+            return f"Do you want to register that {a} gave you {m}?"
         if not self.give:
-            return f"Do you want to confirm that you owe {m} {a}"
-        return f"Do you want to confirm that {m} owes you {a}"
+            return f"Do you want to register that you owe {m} {a}"
+        return f"Do you want to register that {m} owes you {a}"
 
     def render_finished(self):
-        yield "finished"
+        embed = discord.Embed(title="Confirmed!",
+                              description=(
+                                              "Debt" if self.type == "credit" else "Payment") +
+                                          " has been registered: \n" + self.direction_text(),
+                              colour=0x00FF00)
+        embed.add_field(name="amount:", value=f"`{format_euro(self.cent_amount)}`")
+        embed.add_field(name="time:", value=mention_relative_timestamp(self.timestamp))
+        embed.add_field(name="unique id:", value=f"`{self.unique_identifier}`")
+        if self.description:
+            embed.add_field(name="description", value=self.description, inline=False)
+        if self.url:
+            embed.add_field(name="image:", value="", inline=False)
+            embed.set_image(url=self.url)
+        yield embed
 
     def clean_up(self):
         image_listener.remove_listener(self.user.id, self)
@@ -282,7 +369,7 @@ class DescriptionModal(discord.ui.Modal):
 class AmountModal(discord.ui.Modal):
 
     def __init__(self, debt_command_view: DebtCommandView):
-        super().__init__(title="change description")
+        super().__init__(title="change amount")
         self.debt_command_view = debt_command_view
 
         self.name = discord.ui.TextInput(
@@ -294,7 +381,3 @@ class AmountModal(discord.ui.Modal):
 
     async def on_submit(self, interaction: discord.Interaction):
         await self.debt_command_view.change_amount_confirm(interaction, self.name.value)
-
-# @tree.command(name='give')
-# @tree.command(name='accept')
-# @tree.command(name='receive')
