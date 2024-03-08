@@ -92,19 +92,21 @@ class DebtCommandView(ApplicationView):
     async def event(self, event):
         interaction = event[0]
         self.url = event[1]
-        await run_application(interaction, DebtCommandView(
-            user=self.user,
-            member=self.member,
-            to_user=self.to_user,
-            to_member=self.to_member,
-            description=self.description,
-            raw_cent_amount=self.raw_cent_amount,
-            cent_amount=self.cent_amount,
-            url=self.url,
-            give=self.give,
-            type=self.type
-        ))
-        await self.last_interaction.delete_original_response()
+        await asyncio.gather(
+            run_application(interaction, DebtCommandView(
+                user=self.user,
+                member=self.member,
+                to_user=self.to_user,
+                to_member=self.to_member,
+                description=self.description,
+                raw_cent_amount=self.raw_cent_amount,
+                cent_amount=self.cent_amount,
+                url=self.url,
+                give=self.give,
+                type=self.type
+            )),
+            self.last_interaction.delete_original_response()
+        )
 
     def render(self):
         match self.state:
