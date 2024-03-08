@@ -214,7 +214,7 @@ class DebtCommandView(ApplicationView):
         else:
             yield Button(label="add description", style=ButtonStyle.blurple, _callable=self.change_description, row=3)
         if self.url:
-            embed.add_field(name="image:", value="to edit image use: " + mention_slash_command("add_image"),
+            embed.add_field(name="image:", value="to edit image use: " + mention_slash_command("edit_image"),
                             inline=False)
             embed.set_image(url=self.url)
             yield Button(label="delete picture", style=ButtonStyle.blurple, _callable=self.delete_picture, row=4)
