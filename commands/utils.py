@@ -215,3 +215,6 @@ class UserListener:
 
     def add_event(self, user_id, event):
         self.listeners[user_id].event(event)
+
+    async def async_add_event(self, user_id, event):
+        await self.listeners[user_id].event(event)
