@@ -45,12 +45,16 @@ class StatusView(ApplicationView):
     async def refresh(self, i, b):
         await self.update(i)
 
+    async def reverse_order(self, i, b):
+        self.credit_first = not self.credit_first
+        await self.set_state(0, i)
+
     def render(self) -> Iterator[str | discord.Embed | ui.Item]:
         page_number = self.state + 1
         page_count = user_balance_page_count(self.user, page_size)
         is_last_page = self.state == page_count - 1
         is_first_page = self.state == 0
-        page_data = [*user_balance(self.user, credit_first=True, page_size=page_size, page=self.state)]
+        page_data = [*user_balance(self.user, credit_first=self.credit_first, page_size=page_size, page=self.state)]
         credit, debt = user_credit_and_debt(self.user)
         embed = discord.Embed(description="")
         embed.set_author(name=f"{self.member.name}", icon_url=self.member.display_avatar.url)
@@ -81,4 +85,6 @@ class StatusView(ApplicationView):
         yield Button(label="▶️", disabled=is_last_page, _callable=self.one_page_forward)
         yield Button(label="⏩", disabled=is_last_page, _callable=self.to_last_page)
         yield Button(label="↺ refresh", style=ButtonStyle.green, _callable=self.refresh)
+        yield Button(label="↑↓ reverse order", style=ButtonStyle.green, _callable=self.reverse_order)
         yield embed
+
