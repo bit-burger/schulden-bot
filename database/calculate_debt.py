@@ -56,3 +56,57 @@ def user_credit_and_debt(user: RegisteredUser) -> (int, int):
     debt = cte.select_from(fn.sum(cte.c.cent_amount)).where(cte.c.cent_amount > 0)
 
     return credit[0].cent_amount or 0, debt[0].cent_amount or 0  # use .tuples() ?
+
+
+def _concat_columns(ls):
+    res = ls[0]
+    for s in ls[1:]:
+        res = res.concat(s)
+    return res
+
+def _user_history_base(user: RegisteredUser, with_other: RegisteredUser, desc_max_length):
+    too_long_cond = fn.LENGTH(MoneyWriteGroup.description) > desc_max_length
+    desc_is_null = MoneyWriteGroup.description.is_null()
+    desc_in_case_too_long = _concat_columns((fn.substr(MoneyWriteGroup.description, 0, desc_max_length - 3), ".."))
+
+    desc = Case(None, ((desc_is_null, None), (too_long_cond, desc_in_case_too_long)),
+                MoneyWriteGroup.description).alias("description")
+
+    # has_sub_id = MoneyWriteSubGroup.unique_sub_identifier.is_null(False)
+    # full_id = _concat_columns((MoneyWriteGroup.id, "(", MoneyWriteSubGroup.unique_sub_identifier, ")"))
+    # unique_id = Case(None, ((has_sub_id, full_id),), MoneyWriteGroup.id).alias("id")
+
+    return MoneyWrite.select(
+        MoneyWriteGroup.id,
+        MoneyWriteSubGroup.sub_id,
+        MoneyWrite.cent_amount,
+        MoneyWriteGroup.created_by,
+        MoneyWriteGroup.created_at,
+        desc,
+        MoneyWriteGroup.type,
+    ).switch(MoneyWrite).join(MoneyWriteSubGroup).switch(MoneyWriteSubGroup).join(MoneyWriteGroup).where(
+        MoneyWrite.from_user == user.id, MoneyWrite.to_user == with_other.id)
+
+
+def user_history(user: RegisteredUser, with_other: RegisteredUser, desc_max_length, page_size, page,
+                 newest_first):
+    base = _user_history_base(user, with_other, desc_max_length)
+    order_column = MoneyWriteGroup.created_at
+    if newest_first:
+        order_column = order_column.desc()
+    return (base
+            .order_by(order_column)
+            .paginate(page + 1, page_size).dicts())
+
+
+def user_history_page_count(user: RegisteredUser, with_other: RegisteredUser, page_size):
+    count = \
+        user.money_writes.select(fn.count(MoneyWrite.from_user)).where(MoneyWrite.to_user == with_other.id).tuples()[0][
+            0]
+    return math.ceil(count / page_size)
+
+
+def total_balance_with_user(user: RegisteredUser, with_other: RegisteredUser):
+    return \
+        user.money_writes.select(fn.sum(MoneyWrite.cent_amount)).where(MoneyWrite.to_user == with_other.id).tuples()[0][
+            0]
