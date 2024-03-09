@@ -75,6 +75,14 @@ class MoneyWriteGroup(BaseModel):
 # - 1 gives 2 10$
 # - 1 gives 2 10$ in credit
 # - 2 owes 1 10$
+# => from user is 10$ in minus, needs 10$
+
+# from_user: 1, to_user: 2, cent_amount: 1000
+# means:
+# - 2 gives 1 10$
+# - 2 gives 1 10$ in credit
+# - 1 owes 2 10$
+# => from_user is 10$ in plus, got 10$ too much
 class MoneyWrite(BaseModel):
     group = ForeignKeyField(MoneyWriteGroup)
     from_user = ForeignKeyField(RegisteredUser, backref="money_writes")
