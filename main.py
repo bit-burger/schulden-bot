@@ -1,6 +1,9 @@
 import discord
 import config
 import commands
+import database.database_schema
+
+database.database_schema.init()
 
 @config.client.event
 async def on_ready():
