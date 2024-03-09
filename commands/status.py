@@ -5,7 +5,7 @@ from discord import app_commands
 
 from database.calculate_debt import *
 from .utils import *
-from config import tree, plus_emoji, minus_emoji
+from config import tree, plus_emoji, minus_emoji, help_icon_url
 
 page_size = 2
 
@@ -18,7 +18,6 @@ async def status(interaction: discord.Interaction, show: Optional[Literal["yes",
     await run_application(interaction, StatusView(user=user, member=interaction.user, ephemeral=ephemeral))
 
 
-icon_url = "https://cdn.discordapp.com/attachments/1213483785593819186/1215785651098746890/Infobox_info_icon_white.svg.png?ex=65fe039f&is=65eb8e9f&hm=f921294c968990f6593b6ad66a83d8e080aaaf73bc18625ec100e0db7b7111dd&"
 
 
 class StatusView(ApplicationView):
@@ -74,7 +73,7 @@ class StatusView(ApplicationView):
         embed.add_field(name="sum of all debt:", value=sign_emoji(debt) + f"`{format_euro(debt)}`")
         embed.add_field(name="sum of all credit:", value=sign_emoji(-credit) + f"`{format_euro(credit)}`")
         embed.add_field(name="total sum:", value=sign_emoji(debt - credit) + f"`{format_euro(abs(debt - credit))}`")
-        embed.set_footer(icon_url=icon_url,
+        embed.set_footer(icon_url=help_icon_url,
                          text="positive means you owe this person (debt), negative means this person owes you (credit)")
         yield Button(label="⏪", disabled=is_first_page, _callable=self.to_first_page)
         yield Button(label="◀️", disabled=is_first_page, _callable=self.one_page_back)

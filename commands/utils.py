@@ -34,6 +34,11 @@ def format_euro(cent: int) -> str:
         after_point = "0" + after_point
     return f"{cent // 100}.{after_point}€"
 
+def format_euro_sign(cent: int) -> str:
+    emoji = sign_emoji(cent)
+    cent = abs(cent)
+    return f"{emoji}`{format_euro(cent)}`"
+
 
 euro_regex = re.compile(r"(?=.?\d)\d*[.,]?\d{0,2}")
 euro_split_regex = re.compile("[,.]")
@@ -64,11 +69,11 @@ def mention_slash_command(name: str):
 
 
 def mention_timestamp(timestamp, type):
-    return f"<t:{timestamp}:R>"
+    return f"<t:{timestamp}:{type}>"
 
 
 def mention_relative_timestamp(timestamp):
-    return mention_timestamp(timestamp, "R")
+    return mention_timestamp(int(timestamp), "R")
 
 
 def pad_to_len(s, length):
