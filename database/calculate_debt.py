@@ -1,3 +1,5 @@
+import math
+
 from database.database_schema import *
 from peewee import *
 
@@ -21,7 +23,8 @@ def user_balance_cte(user: RegisteredUser):
             .join(to_user_alias, on=MoneyWrite.to_user == to_user_alias.id)
             .switch(MoneyWrite)
             .join(MoneyWriteGroup)
-            .where(MoneyWriteGroup.deleted_at.is_null() & (user.everyone_allowed_per_default | user_id_column.in_(whitelist_query)))
+            .where(MoneyWriteGroup.deleted_at.is_null() & (
+                user.everyone_allowed_per_default | user_id_column.in_(whitelist_query)))
             .group_by(user_id_column)).cte('money_write_nets', columns=('user_id', 'cent_amount'))
 
 
@@ -39,11 +42,17 @@ def user_balance(user: RegisteredUser, credit_first: bool, page_size: int, page:
             .paginate(page + 1, page_size).dicts())
 
 
+def user_balance_page_count(user: RegisteredUser, page_size: int) -> int:
+    cte = user_balance_cte(user)
+    count = cte.select_from(fn.count(cte.c.user_id)).tuples()[0][0]
+    return math.ceil(count / page_size)
+
+
 # gives back (credit, database)
 def user_credit_and_debt(user: RegisteredUser) -> (int, int):
     cte = user_balance_cte(user)
     # select on cte instead of with_cte ?
-    credit = cte.select_from(fn.sum(cte.c.cent_amount)).where(cte.c.cent_amount > 0)
-    debt = cte.select_from(fn.sum(0 - cte.c.cent_amount)).where(cte.c.cent_amount < 0)
+    credit = cte.select_from(fn.sum(0 - cte.c.cent_amount)).where(cte.c.cent_amount < 0)
+    debt = cte.select_from(fn.sum(cte.c.cent_amount)).where(cte.c.cent_amount > 0)
 
     return credit[0].cent_amount or 0, debt[0].cent_amount or 0  # use .tuples() ?
