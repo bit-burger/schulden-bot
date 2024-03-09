@@ -9,7 +9,7 @@ def exe(sql: str, params: [any]):
 
 
 # balance of the user with each other user (but without ignored and with whitelist)
-def user_balance_cte(user: RegisteredUser):
+def _user_balance_cte(user: RegisteredUser):
     to_user_alias = RegisteredUser.alias("to_user")
     from_user_alias = RegisteredUser.alias("from_user")
 
@@ -22,9 +22,9 @@ def user_balance_cte(user: RegisteredUser):
             .select(user_id_column, cent_amount_column)
             .join(to_user_alias, on=MoneyWrite.to_user == to_user_alias.id)
             .switch(MoneyWrite)
-            .join(MoneyWriteGroup)
-            .where(MoneyWriteGroup.deleted_at.is_null() & (
-                user.everyone_allowed_per_default | user_id_column.in_(whitelist_query)))
+            .join(MoneyWriteSubGroup)
+            .where(MoneyWriteSubGroup.deleted_at.is_null() & (
+            user.everyone_allowed_per_default | user_id_column.in_(whitelist_query)))
             .group_by(user_id_column)).cte('money_write_nets', columns=('user_id', 'cent_amount'))
 
 
@@ -32,10 +32,10 @@ def user_balance_cte(user: RegisteredUser):
 # page_size: how big the list should be
 # page: starts by 0
 def user_balance(user: RegisteredUser, credit_first: bool, page_size: int, page: int):
-    cte = user_balance_cte(user)
+    cte = _user_balance_cte(user)
     order_column = cte.c.cent_amount
     if not credit_first:
-        order_column = order_column
+        order_column = order_column.desc()
     return (cte
             .select_from(cte.c.user_id, cte.c.cent_amount)
             .order_by(order_column)
@@ -43,14 +43,14 @@ def user_balance(user: RegisteredUser, credit_first: bool, page_size: int, page:
 
 
 def user_balance_page_count(user: RegisteredUser, page_size: int) -> int:
-    cte = user_balance_cte(user)
+    cte = _user_balance_cte(user)
     count = cte.select_from(fn.count(cte.c.user_id)).tuples()[0][0]
     return math.ceil(count / page_size)
 
 
 # gives back (credit, database)
 def user_credit_and_debt(user: RegisteredUser) -> (int, int):
-    cte = user_balance_cte(user)
+    cte = _user_balance_cte(user)
     # select on cte instead of with_cte ?
     credit = cte.select_from(fn.sum(0 - cte.c.cent_amount)).where(cte.c.cent_amount < 0)
     debt = cte.select_from(fn.sum(cte.c.cent_amount)).where(cte.c.cent_amount > 0)

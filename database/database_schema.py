@@ -5,8 +5,6 @@ from config import db
 
 
 class BaseModel(Model):
-    created_at = DateTimeField(default=datetime.datetime.now)
-
     class Meta:
         database = db
         strict_table = True
@@ -17,6 +15,7 @@ class RegisteredUser(BaseModel):
     deleted_at = DateTimeField(null=True)
     # (whitelisting jeder whitelisted wen anders) send_friend_invites_per_dm = BooleanField(default=False)
     everyone_allowed_per_default = BooleanField(default=True)
+    created_at = DateTimeField(default=datetime.datetime.now)
     # dm notifications new database
     # dm notifications new database übertragung
 
@@ -62,11 +61,32 @@ class GuildChannel(BaseModel):
 class MoneyWriteGroup(BaseModel):
     id = TextField(primary_key=True)
     description = TextField(null=True)
-    picture = TextField(null=True)
-    deleted_at = DateTimeField(null=True)
+    image_url = TextField(null=True)
     guild_channel = ForeignKeyField(GuildChannel, null=True)
     type = TextField()  # money_give, credit, group_credit (maybe schuldenaustausch: switch von schulden von min. 3 person)
     created_by = ForeignKeyField(RegisteredUser)
+    created_at = DateTimeField(default=datetime.datetime.now)
+
+
+# example: MoneyWriteGroup has identifier A45CH
+#          MoneyWriteSubGroup has identifier b
+#          => get to MoneySubWriteGroup: A45CH(b)
+class MoneyWriteSubGroup(BaseModel):
+    sub_id = TextField(null=True)  # should be a single letter or null if there is only one sub group
+    group = ForeignKeyField(MoneyWriteGroup)
+    specific_description = TextField(null=True)
+    deleted_at = DateTimeField(null=True)
+
+    # all participants can edit description etc
+
+
+class MoneyWriteGroupParticipant(BaseModel):
+    participant = ForeignKeyField(RegisteredUser)
+    group = ForeignKeyField(MoneyWriteGroup)
+    sub_group = ForeignKeyField(MoneyWriteSubGroup, null=True)
+    # can_request_deletion = BooleanField()
+    can_delete = BooleanField()
+
 
 
 # EXAMPLE:
@@ -84,19 +104,18 @@ class MoneyWriteGroup(BaseModel):
 # - 1 owes 2 10$
 # => from_user is 10$ in plus, got 10$ too much
 class MoneyWrite(BaseModel):
-    group = ForeignKeyField(MoneyWriteGroup)
+    sub_group = ForeignKeyField(MoneyWriteSubGroup)
     from_user = ForeignKeyField(RegisteredUser, backref="money_writes")
     to_user = ForeignKeyField(RegisteredUser)
     cent_amount = IntegerField()
-    specific_description = TextField(null=True)
 
     class Meta:
         table_name = "money_write"
         # primary_key = CompositeKey('group', 'from_user', 'to_user')
         constraints = [
-            SQL("UNIQUE (group_id, from_user_id, to_user_id)"),
-            SQL("FOREIGN KEY (group_id, from_user_id, to_user_id) " +
-                " REFERENCES money_write(group_id, to_user_id, from_user_id)")]
+            SQL("UNIQUE (sub_group_id, from_user_id, to_user_id)"),
+            SQL("FOREIGN KEY (sub_group_id, from_user_id, to_user_id) " +
+                " REFERENCES money_write(sub_group_id, to_user_id, from_user_id)")]
 
 
 ### Table Audit Log
@@ -108,4 +127,6 @@ class MoneyWrite(BaseModel):
 
 def init():
     db.connect()
-    db.create_tables([RegisteredUser, GuildChannel, MoneyWriteGroup, MoneyWrite, IgnoreUsers, WhitelistUser])
+    db.create_tables(
+        [RegisteredUser, GuildChannel, MoneyWriteGroup, MoneyWriteSubGroup, MoneyWriteGroupParticipant, MoneyWrite,
+         IgnoreUsers, WhitelistUser])

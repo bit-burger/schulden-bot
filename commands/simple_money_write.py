@@ -7,7 +7,7 @@ from typing import Literal
 from discord import Embed, app_commands, Member
 
 from config import tree
-from database.database_schema import MoneyWriteGroup, MoneyWrite
+from database.database_schema import *
 from database.permissions import can_send
 from .attachment import image_listener
 from .utils import *
@@ -191,11 +191,14 @@ class DebtCommandView(ApplicationView):
         group = MoneyWriteGroup.create(id=self.unique_identifier, description=self.description, created_by=self.user,
                                        type=self.type,
                                        picture=self.url)
+        sub_group = MoneyWriteSubGroup.create(group=group)
+        MoneyWriteGroupParticipant.create(group=group, participant=self.user, can_delete=give)
+        MoneyWriteGroupParticipant.create(group=group, participant=self.to_user, can_delete=not give)
         cent_amount = self.cent_amount
         if self.give:
             cent_amount *= -1
-        rows = [{'group': group, 'cent_amount': cent_amount, 'from_user': self.user, 'to_user': self.to_user}, {
-            'group': group, 'cent_amount': -cent_amount, 'from_user': self.to_user, 'to_user': self.user}]
+        rows = [{'sub_group': sub_group, 'cent_amount': cent_amount, 'from_user': self.user, 'to_user': self.to_user}, {
+            'sub_group': sub_group, 'cent_amount': -cent_amount, 'from_user': self.to_user, 'to_user': self.user}]
         MoneyWrite.insert_many(rows).execute()
 
         self.timestamp = int(group.created_at.timestamp())
