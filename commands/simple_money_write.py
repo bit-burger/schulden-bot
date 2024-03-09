@@ -192,7 +192,7 @@ class DebtCommandView(ApplicationView):
                                        type=self.type,
                                        picture=self.url)
         cent_amount = self.cent_amount
-        if not self.give:
+        if self.give:
             cent_amount *= -1
         rows = [{'group': group, 'cent_amount': cent_amount, 'from_user': self.user, 'to_user': self.to_user}, {
             'group': group, 'cent_amount': -cent_amount, 'from_user': self.to_user, 'to_user': self.user}]
