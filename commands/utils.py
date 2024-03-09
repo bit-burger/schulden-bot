@@ -69,6 +69,14 @@ def mention_relative_timestamp(timestamp):
     return mention_timestamp(timestamp, "R")
 
 
+
+def sign_emoji(a):
+    if a < 0:
+        return config.minus_emoji
+    else:
+        return config.plus_emoji
+
+
 class Select(ui.Select):
     def __init__(self, _callable: Callable[[discord.Interaction, discord.ui.Select], Awaitable[None]],
                  custom_id: str = MISSING,
