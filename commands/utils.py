@@ -62,12 +62,18 @@ def get_id_of_slash_command(name: str):
 def mention_slash_command(name: str):
     return f"</{name}:{get_id_of_slash_command(name)}>"
 
+
 def mention_timestamp(timestamp, type):
     return f"<t:{timestamp}:R>"
+
 
 def mention_relative_timestamp(timestamp):
     return mention_timestamp(timestamp, "R")
 
+
+def pad_to_len(s, length):
+    if len(s) <= length:
+        return s + " " * (length - len(s))
 
 
 def sign_emoji(a):
