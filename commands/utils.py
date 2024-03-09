@@ -96,7 +96,7 @@ class Select(ui.Select):
 
 class Button(ui.Button):
     def __init__(self,
-                 _callable: Callable[[discord.Interaction, discord.ui.Button], Awaitable[None]],
+                 _callable: Callable[[discord.Interaction, discord.ui.Button], Awaitable[None]] = None,
                  style: ButtonStyle = ButtonStyle.secondary,
                  label: str | None = None,
                  disabled: bool = False,
@@ -109,7 +109,8 @@ class Button(ui.Button):
         self.callable = _callable
 
     async def callback(self, interaction: discord.Interaction):
-        await self.callable(interaction, self)
+        if self.callable:
+            await self.callable(interaction, self)
 
 
 class UserSelect(ui.UserSelect):
@@ -141,6 +142,9 @@ class ApplicationView(ui.View):
     async def set_state(self, state: any, interaction: discord.Interaction, follow_up=False):
         self._state = state
         await self._render(interaction, to_render=self.render(), follow_up=follow_up)
+
+    async def update(self, interaction: discord.Interaction):
+        await self.set_state(self._state, interaction)
 
     def __init__(self, state: any, user: RegisteredUser, ephemeral: bool = True, timeout: Optional[int] = None):
         super().__init__(timeout=timeout)
