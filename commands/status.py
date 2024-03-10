@@ -22,7 +22,7 @@ async def status(interaction: discord.Interaction, show: Optional[Literal["yes",
 
 class StatusView(ApplicationView):
 
-    def __init__(self, ephemeral: bool, user: RegisteredUser, member: discord.Member):
+    def __init__(self, ephemeral: bool, user: User, member: discord.Member):
         super().__init__(user=user, ephemeral=ephemeral, state=0)
         self.credit_first = True
         self.page = 0

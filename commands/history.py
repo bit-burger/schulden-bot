@@ -35,7 +35,7 @@ async def history(interaction: discord.Interaction, who: discord.Member, show: O
 
 class HistoryView(UserApplicationView):
 
-    def __init__(self, ephemeral: bool, user: RegisteredUser, member: discord.Member, with_user: RegisteredUser):
+    def __init__(self, ephemeral: bool, user: User, member: discord.Member, with_user: User):
         super().__init__(user=user, ephemeral=ephemeral)
         self.newest_first = True
         self.page = 0

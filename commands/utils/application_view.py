@@ -5,7 +5,7 @@ import discord
 from discord._types import ClientT
 from discord.abc import MISSING
 
-from database.database_schema import RegisteredUser
+from database.database_schema import User
 
 
 class Select(ui.Select):
@@ -96,7 +96,7 @@ class ApplicationView(ui.View):
 
 
 class UserApplicationView(ApplicationView):
-    def __init__(self, user: RegisteredUser, ephemeral: bool = True, timeout: Optional[int] = None):
+    def __init__(self, user: User, ephemeral: bool = True, timeout: Optional[int] = None):
         self.user = user
         super().__init__(ephemeral=ephemeral, timeout=timeout)
 

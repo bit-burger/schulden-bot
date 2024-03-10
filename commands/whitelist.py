@@ -40,7 +40,7 @@ async def whitelist_remove(interaction: discord.Interaction):
 
 class WhitelistRemoveApp(UserApplicationView):
 
-    def __init__(self, user: RegisteredUser):
+    def __init__(self, user: User):
         super().__init__(user)
         self.state = "selecting"
         self.to_be_un_whitelisted = set()
@@ -103,7 +103,7 @@ class WhitelistRemoveApp(UserApplicationView):
 
 
 class WhitelistUserReset(ui.View):
-    def __init__(self, user: RegisteredUser):
+    def __init__(self, user: User):
         super().__init__()
         self.user = user
 
@@ -134,13 +134,13 @@ async def whitelist(interaction: discord.Interaction):
 
 
 class WhitelistMenu(discord.ui.View):
-    def __init__(self, user: RegisteredUser, already_selected_ids: {int}):
+    def __init__(self, user: User, already_selected_ids: {int}):
         super().__init__()
         self.add_item(WhitelistSelect(user, already_selected_ids))
 
 
 class WhitelistSelect(ui.MentionableSelect):
-    def __init__(self, user: RegisteredUser, already_selected_ids: {int}):
+    def __init__(self, user: User, already_selected_ids: {int}):
         self.user = user
         self.already_selected_ids = already_selected_ids
         super().__init__(min_values=0, placeholder="who do you want to whitelist?", max_values=25)
@@ -182,7 +182,7 @@ class WhitelistSelect(ui.MentionableSelect):
 
 class NoAddedToWhitelist(ui.View):
 
-    def __init__(self, user: RegisteredUser):
+    def __init__(self, user: User):
         super().__init__()
         self.user = user
 
@@ -199,7 +199,7 @@ class NoAddedToWhitelist(ui.View):
 
 class WhitelistConfirmation(ui.View):
 
-    def __init__(self, user: RegisteredUser, users: [RegisteredUser], embed: discord.Embed):
+    def __init__(self, user: User, users: [User], embed: discord.Embed):
         super().__init__()
         self.embed = embed
         self.user = user

@@ -13,14 +13,14 @@ async def settings(interaction: discord.Interaction):
 
 
 class Settings(discord.ui.View):
-    def __init__(self, user: RegisteredUser):
+    def __init__(self, user: User):
         super().__init__()
 
         self.add_item(OpenToEveryoneSelect(user))
 
 
 class OpenToEveryoneSelect(ui.Select):
-    def __init__(self, user: RegisteredUser):
+    def __init__(self, user: User):
         options = [discord.SelectOption(value="1", label="Open to track debt with everyone",
                                         description="everyone can track your debt, except those that you /ignore",
                                         default=user.everyone_allowed_per_default),

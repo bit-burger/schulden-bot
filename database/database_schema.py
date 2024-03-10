@@ -10,7 +10,7 @@ class BaseModel(Model):
         strict_table = True
 
 
-class RegisteredUser(BaseModel):
+class User(BaseModel):
     id = IntegerField(primary_key=True)
     deleted_at = DateTimeField(null=True)
     # (whitelisting jeder whitelisted wen anders) send_friend_invites_per_dm = BooleanField(default=False)
@@ -19,18 +19,17 @@ class RegisteredUser(BaseModel):
     # dm notifications new database
     # dm notifications new database übertragung
 
-
 class IgnoreUsers(BaseModel):
-    by = ForeignKeyField(RegisteredUser, backref="ignored")
-    ignored = ForeignKeyField(RegisteredUser, backref="ignored_by")
+    by = ForeignKeyField(User, backref="ignored")
+    ignored = ForeignKeyField(User, backref="ignored_by")
 
     class Meta:
         primary_key = CompositeKey('by', 'ignored')
 
 
 class WhitelistUser(BaseModel):
-    by = ForeignKeyField(RegisteredUser, backref="whitelisted")
-    whitelisted = ForeignKeyField(RegisteredUser, backref="whitelisted_by")
+    by = ForeignKeyField(User, backref="whitelisted")
+    whitelisted = ForeignKeyField(User, backref="whitelisted_by")
 
     class Meta:
         primary_key = CompositeKey('by', 'whitelisted')
@@ -64,7 +63,7 @@ class MoneyWriteGroup(BaseModel):
     image_url = TextField(null=True)
     guild_channel = ForeignKeyField(GuildChannel, null=True)
     type = TextField()  # money_give, credit, group_credit (maybe schuldenaustausch: switch von schulden von min. 3 person)
-    created_by = ForeignKeyField(RegisteredUser)
+    created_by = ForeignKeyField(User)
     created_at = DateTimeField(default=datetime.datetime.now)
 
 
@@ -81,7 +80,7 @@ class MoneyWriteSubGroup(BaseModel):
 
 
 class MoneyWriteGroupParticipant(BaseModel):
-    participant = ForeignKeyField(RegisteredUser)
+    participant = ForeignKeyField(User)
     group = ForeignKeyField(MoneyWriteGroup)
     sub_group = ForeignKeyField(MoneyWriteSubGroup, null=True)
     # can_request_deletion = BooleanField()
@@ -105,8 +104,8 @@ class MoneyWriteGroupParticipant(BaseModel):
 # => from_user is 10$ in plus, got 10$ too much
 class MoneyWrite(BaseModel):
     sub_group = ForeignKeyField(MoneyWriteSubGroup)
-    from_user = ForeignKeyField(RegisteredUser, backref="money_writes")
-    to_user = ForeignKeyField(RegisteredUser)
+    from_user = ForeignKeyField(User, backref="money_writes")
+    to_user = ForeignKeyField(User)
     cent_amount = IntegerField()
 
     class Meta:
@@ -123,10 +122,14 @@ class MoneyWrite(BaseModel):
 # including all attributes by editing with json
 
 # editing money amount after 10 minutes requires approval of other person?
+class AuditLog(BaseModel):
+    group = ForeignKeyField(MoneyWriteGroup)
+    type: TextField() # create, delete, edit
+
 
 
 def init():
     db.connect()
     db.create_tables(
-        [RegisteredUser, GuildChannel, MoneyWriteGroup, MoneyWriteSubGroup, MoneyWriteGroupParticipant, MoneyWrite,
+        [User, GuildChannel, MoneyWriteGroup, MoneyWriteSubGroup, MoneyWriteGroupParticipant, MoneyWrite,
          IgnoreUsers, WhitelistUser])

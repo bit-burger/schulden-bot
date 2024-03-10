@@ -9,9 +9,9 @@ def exe(sql: str, params: [any]):
 
 
 # balance of the user with each other user (but without ignored and with whitelist)
-def _user_balance_cte(user: RegisteredUser):
-    to_user_alias = RegisteredUser.alias("to_user")
-    from_user_alias = RegisteredUser.alias("from_user")
+def _user_balance_cte(user: User):
+    to_user_alias = User.alias("to_user")
+    from_user_alias = User.alias("from_user")
 
     user_id_column = to_user_alias.id.alias("user_id")
     cent_amount_column = fn.sum(MoneyWrite.cent_amount).alias("total_cent_amount")
@@ -31,7 +31,7 @@ def _user_balance_cte(user: RegisteredUser):
 # credit_first: (should be ordered by the highest credit)
 # page_size: how big the list should be
 # page: starts by 0
-def user_balance(user: RegisteredUser, credit_first: bool, page_size: int, page: int):
+def user_balance(user: User, credit_first: bool, page_size: int, page: int):
     cte = _user_balance_cte(user)
     order_column = cte.c.cent_amount
     if not credit_first:
@@ -42,14 +42,14 @@ def user_balance(user: RegisteredUser, credit_first: bool, page_size: int, page:
             .paginate(page + 1, page_size).dicts())
 
 
-def user_balance_page_count(user: RegisteredUser, page_size: int) -> int:
+def user_balance_page_count(user: User, page_size: int) -> int:
     cte = _user_balance_cte(user)
     count = cte.select_from(fn.count(cte.c.user_id)).tuples()[0][0]
     return math.ceil(count / page_size)
 
 
 # gives back (credit, database)
-def user_credit_and_debt(user: RegisteredUser) -> (int, int):
+def user_credit_and_debt(user: User) -> (int, int):
     cte = _user_balance_cte(user)
     # select on cte instead of with_cte ?
     credit = cte.select_from(fn.sum(0 - cte.c.cent_amount)).where(cte.c.cent_amount < 0)
@@ -64,7 +64,7 @@ def _concat_columns(ls):
         res = res.concat(s)
     return res
 
-def _user_history_base(user: RegisteredUser, with_other: RegisteredUser, desc_max_length):
+def _user_history_base(user: User, with_other: User, desc_max_length):
     too_long_cond = fn.LENGTH(MoneyWriteGroup.description) > desc_max_length
     desc_is_null = MoneyWriteGroup.description.is_null()
     desc_in_case_too_long = _concat_columns((fn.substr(MoneyWriteGroup.description, 0, desc_max_length - 3), ".."))
@@ -88,7 +88,7 @@ def _user_history_base(user: RegisteredUser, with_other: RegisteredUser, desc_ma
         MoneyWrite.from_user == user.id, MoneyWrite.to_user == with_other.id)
 
 
-def user_history(user: RegisteredUser, with_other: RegisteredUser, desc_max_length, page_size, page,
+def user_history(user: User, with_other: User, desc_max_length, page_size, page,
                  newest_first):
     base = _user_history_base(user, with_other, desc_max_length)
     order_column = MoneyWriteGroup.created_at
@@ -99,14 +99,14 @@ def user_history(user: RegisteredUser, with_other: RegisteredUser, desc_max_leng
             .paginate(page + 1, page_size).dicts())
 
 
-def user_history_page_count(user: RegisteredUser, with_other: RegisteredUser, page_size):
+def user_history_page_count(user: User, with_other: User, page_size):
     count = \
         user.money_writes.select(fn.count(MoneyWrite.from_user)).where(MoneyWrite.to_user == with_other.id).tuples()[0][
             0]
     return math.ceil(count / page_size)
 
 
-def total_balance_with_user(user: RegisteredUser, with_other: RegisteredUser):
+def total_balance_with_user(user: User, with_other: User):
     return \
         user.money_writes.select(fn.sum(MoneyWrite.cent_amount)).where(MoneyWrite.to_user == with_other.id).tuples()[0][
             0]

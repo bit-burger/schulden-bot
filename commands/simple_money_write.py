@@ -144,7 +144,7 @@ async def accept(i: discord.Interaction, amount: str, who: discord.Member, descr
 
 class DebtCommandView(UserApplicationView):
 
-    def __init__(self, user: RegisteredUser, member: Member, to_user: RegisteredUser, to_member: Member,
+    def __init__(self, user: User, member: Member, to_user: User, to_member: Member,
                  description: str | None, raw_cent_amount: str, cent_amount: int,
                  url: str | None, give: bool,
                  type: Literal["money_give", "credit"]):
