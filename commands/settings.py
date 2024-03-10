@@ -1,9 +1,8 @@
-import discord
-
-from database.database_schema import RegisteredUser
-from .utils import check_register
+from .utils.database_utils import *
+from .utils.application_view import *
+from .utils.formatting import *
 from config import tree
-from discord import ui, Interaction
+from discord import ui
 
 
 @tree.command(name='settings', description="open settings", guild=discord.Object(id=1201588191094906890))
@@ -32,7 +31,7 @@ class OpenToEveryoneSelect(ui.Select):
         self.user = user
         super().__init__(options=options)
 
-    async def callback(self, interaction: Interaction):
+    async def callback(self, interaction: discord.Interaction):
         self.user.everyone_allowed_per_default = self.values[0] == "1"
         self.user.save()
         await interaction.response.send_message(embed=discord.Embed(title="Settings saved!"), ephemeral=True)

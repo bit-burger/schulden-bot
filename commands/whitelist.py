@@ -1,10 +1,8 @@
-from typing import Iterator
-
-import discord
-
-from database.database_schema import RegisteredUser, WhitelistUser
-from . import utils
-from .utils import *
+from database.database_schema import WhitelistUser
+from .utils.application_view import *
+from .utils.formatting import *
+from .utils.database_utils import *
+from .utils.discord_utils import *
 from config import tree
 from discord import ui, ButtonStyle
 
@@ -13,11 +11,11 @@ from discord import ui, ButtonStyle
               guild=discord.Object(id=1201588191094906890))
 async def whitelist_view(interaction: discord.Interaction):
     user = check_register(interaction)
-    if (user.everyone_allowed_per_default):
+    if user.everyone_allowed_per_default:
         return await interaction.response.send_message(embed=discord.Embed(title="Whitelisting is not enabled",
                                                                            description="Use **/settings** to turn on whitelisting",
                                                                            color=0xFF0000), ephemeral=True)
-    whitelisted_ids = set(map(lambda whitelisted: whitelisted.whitelisted, user.whitelisted))
+    whitelisted_ids = set(map(lambda whitelisted: whitelisted.whitelisted.id, user.whitelisted))
     return await interaction.response.send_message(
         embed=discord.Embed(title="All whitelisted users:", description=id_iter_to_text(whitelisted_ids)),
         ephemeral=True)
@@ -37,61 +35,69 @@ async def whitelist_reset(interaction: discord.Interaction):
               guild=discord.Object(id=1201588191094906890))
 async def whitelist_remove(interaction: discord.Interaction):
     user = check_register(interaction)
-    await run_application(interaction, WhitelistRemoveApp(("selecting", set()), user))
+    await run_application(interaction, WhitelistRemoveApp(user))
 
 
-class WhitelistRemoveApp(ApplicationView):
+class WhitelistRemoveApp(UserApplicationView):
+
+    def __init__(self, user: RegisteredUser):
+        super().__init__(user)
+        self.state = "selecting"
+        self.to_be_un_whitelisted = set()
+        self.already_not_whitelisted = set()
 
     async def select(self, i, s: UserSelect):
         whitelisted = set(map(lambda whitelisted: whitelisted.whitelisted.id, self.user.whitelisted))
         to_be_un_whitelisted = set(to_id_set(filter(lambda user: not user.bot and user.id != self.user.id, s.values)))
-        not_whitelisted = to_be_un_whitelisted - whitelisted
+        self.already_not_whitelisted = to_be_un_whitelisted - whitelisted
         to_be_un_whitelisted &= whitelisted
-        to_be_un_whitelisted |= self.state[1]
-        await self.set_state(("reviewing", (to_be_un_whitelisted, not_whitelisted)), i)
+        self.to_be_un_whitelisted |= to_be_un_whitelisted
+        self.state = "reviewing"
+        await self.set_state(i)
 
     async def add_more(self, i, b):
-        await self.set_state(("selecting", self.state[1][0]), i)
+        self.state = "selecting"
+        await self.set_state(i)
 
     async def cancel(self, i, b):
         self.stop()
-        await self.set_state(("fail", None), i)
+        self.state = "fail"
+        await self.set_state(i)
 
     async def confirm(self, i, b):
         self.stop()
         WhitelistUser.delete().where(
-            WhitelistUser.whitelisted.in_(self.state[1][0]), WhitelistUser.by == self.user).execute()
-        await self.set_state(("success", self.state[1][0]), i)
+            WhitelistUser.whitelisted.in_(self.to_be_un_whitelisted), WhitelistUser.by == self.user).execute()
+        self.state = "success"
+        await self.set_state(i)
 
     def render(self) -> Iterator[str | discord.Embed | ui.Item]:
-        action, action_data = self.state
-        if action == "selecting":
-            selected = action_data
+        if self.state == "selecting":
             embed = discord.Embed(title="Select users to remove from whitelist")
-            if len(selected) > 0:
+            if len(self.to_be_un_whitelisted) > 0:
                 embed = discord.Embed(title="Select more users to remove from whitelist")
-                embed.add_field(name="Already being added", value=id_iter_to_text(selected))
+                embed.add_field(name="Already being added", value=id_iter_to_text(self.to_be_un_whitelisted))
             yield embed
             yield UserSelect(self.select, max_values=25, placeholder="who to remove from your whitelist")
-        if action == "reviewing":
-            to_be_un_whitelisted, not_whitelisted = action_data
+        if self.state == "reviewing":
             embed = discord.Embed(title="No users have been selected")
-            if len(to_be_un_whitelisted) > 0:
+            if len(self.to_be_un_whitelisted) > 0:
                 embed = discord.Embed(title="Confirm users to be removed from whitelist")
-                embed.add_field(name="Users that will be removed:", value=id_iter_to_text(to_be_un_whitelisted))
+                embed.add_field(name="Users that will be removed:", value=id_iter_to_text(self.to_be_un_whitelisted))
                 yield Button(style=ButtonStyle.green, label="confirm", _callable=self.confirm)
-            if len(not_whitelisted) > 0:
+            if len(self.already_not_whitelisted) > 0:
                 embed.add_field(name="Users that have not been whitelisted (will be ignored):",
-                                value=id_iter_to_text(not_whitelisted))
+                                value=id_iter_to_text(self.already_not_whitelisted))
             yield embed
             yield Button(style=ButtonStyle.red, label="cancel", _callable=self.cancel)
             yield Button(style=ButtonStyle.blurple, label="Select more users to remove from whitelist",
                          _callable=self.add_more)
-        if action == "success":
+        if self.state == "success":
             yield discord.Embed(title="You have successfully removed users from your whitelist",
-                                description="Removed from your whitelist: " + id_iter_to_text(action_data),
+                                description="Removed from your whitelist: " + id_iter_to_text(
+                                    self.to_be_un_whitelisted),
                                 color=0x00FF00)
-        if action == "fail":
+        if self.state == "fail":
             yield discord.Embed(title="Nobody has been removed from your whitelist",
                                 color=0xFF0000)
 
@@ -133,14 +139,6 @@ class WhitelistMenu(discord.ui.View):
         self.add_item(WhitelistSelect(user, already_selected_ids))
 
 
-def to_id_set(users: [discord.User | discord.Member]) -> {int}:
-    return set(map(lambda user: user.id, users))
-
-
-def id_iter_to_text(ids: {int}) -> str:
-    return ",".join(map(lambda id: "<@" + str(id) + ">", ids))
-
-
 class WhitelistSelect(ui.MentionableSelect):
     def __init__(self, user: RegisteredUser, already_selected_ids: {int}):
         self.user = user
@@ -160,7 +158,8 @@ class WhitelistSelect(ui.MentionableSelect):
         users = set(filter(lambda user: not user.bot and user.id != self.user.id, users))
         user_ids = to_id_set(users) | self.already_selected_ids
         ignored_ids = user_ids & set(map(lambda ignored: ignored.ignored.id, self.user.ignored))
-        whitelisted_ids = user_ids & set(map(lambda whitelisted: whitelisted.whitelisted.id, self.user.whitelisted))
+        whitelisted_ids = user_ids & set(
+            map(lambda whitelisted: whitelisted.whitelisted.id, self.user.whitelisted))
         user_ids -= ignored_ids | whitelisted_ids
         embed = discord.Embed(title="Confirm whitelisting", color=0x00ff00)
         if len(user_ids) > 0:

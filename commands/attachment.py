@@ -1,7 +1,8 @@
-import discord
 from discord import app_commands
 
-from .utils import *
+from .utils.discord_utils import *
+from .utils.formatting import *
+from .utils.user_listener import UserListener
 from config import tree
 
 image_listener = UserListener()
@@ -20,7 +21,6 @@ async def add_image(i: discord.Interaction, image: discord.Attachment):
         return await send_error_embed(i, title="Not an image/pdf",
                                       description="the attachment needs to be an image (png, jpg, etc...) or pdf")
     await image_listener.async_add_event(i.user.id, (i, image.url))
-    # await send_success_embed(i, title="Successfully added image")
 
 
 @tree.command(name='edit_image', description="edit image or pdf of last supporting command you have been using",

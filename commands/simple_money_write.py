@@ -4,13 +4,16 @@ import string
 from functools import partial
 from typing import Literal
 
-from discord import Embed, app_commands, Member
+from discord import Embed, app_commands, Member, ButtonStyle
 
+from .utils.application_view import *
+from .utils.database_utils import *
+from .utils.formatting import *
+from .utils.discord_utils import *
 from config import tree
 from database.database_schema import *
 from database.permissions import can_send
 from .attachment import image_listener
-from .utils import *
 
 
 # all commands:
@@ -139,12 +142,14 @@ async def accept(i: discord.Interaction, amount: str, who: discord.Member, descr
     )
 
 
-class DebtCommandView(ApplicationView):
+class DebtCommandView(UserApplicationView):
+
     def __init__(self, user: RegisteredUser, member: Member, to_user: RegisteredUser, to_member: Member,
                  description: str | None, raw_cent_amount: str, cent_amount: int,
                  url: str | None, give: bool,
                  type: Literal["money_give", "credit"]):
-        super().__init__(user=user, state="confirmation")
+        super().__init__(user=user)
+        self.state = "confirmation"
         self.member = member
         self.to_user = to_user
         self.to_member = to_member
@@ -202,19 +207,21 @@ class DebtCommandView(ApplicationView):
         MoneyWrite.insert_many(rows).execute()
 
         self.timestamp = int(group.created_at.timestamp())
-        await self.set_state("finished", i)
+        self.state = "finished"
+        await self.set_state(i)
 
     async def cancel(self, i, b):
         self.stop()
-        await self.set_state("cancelled", i)
+        self.state = "cancelled"
+        await self.set_state(i)
 
     async def toggle_give(self, i, b):
         self.give = not self.give
-        await self.set_state("confirmation", i)
+        await self.set_state(i)
 
     async def toggle_type(self, i, b):
         self.type = "money_give" if self.type == "credit" else "credit"
-        await self.set_state("confirmation", i)
+        await self.set_state(i)
 
     async def change_amount(self, i, b):
         await i.response.send_modal(AmountModal(self))
@@ -228,27 +235,27 @@ class DebtCommandView(ApplicationView):
             self.error = "amount could not be changed as amount has to be positive"
         self.raw_cent_amount = None
         self.cent_amount = amount
-        await self.set_state("confirmation", i)
+        await self.set_state(i)
 
     async def change_amount_by(self, by: int, i, b):
         self.cent_amount += by
         self.raw_cent_amount = None
-        await self.set_state("confirmation", i)
+        await self.set_state(i)
 
     async def change_description(self, i, b):
         await i.response.send_modal(DescriptionModal(self, self.description))
 
     async def change_description_confirm(self, i, description):
         self.description = description
-        await self.set_state("confirmation", i)
+        await self.set_state(i)
 
     async def delete_description(self, i, b):
         self.description = None
-        await self.set_state("confirmation", i)
+        await self.set_state(i)
 
     async def delete_picture(self, i, b):
         self.url = None
-        await self.set_state("confirmation", i)
+        await self.set_state(i)
 
     def render_confirmation(self):
         embed = Embed(title="Confirmation",
@@ -305,8 +312,6 @@ class DebtCommandView(ApplicationView):
     def direction_text(self):
         a = f"<@{self.user.id}>"
         b = f"<@{self.to_user.id}>"
-        # if self.give:
-        #     a, b = b, a
         if self.give ^ (self.type == "money_give"):
             a, b = b, a
         return f"{a}`--{"owes" if self.type == "credit" else "payed"}-->`{b}"

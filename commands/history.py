@@ -1,9 +1,11 @@
 from typing import Literal, Optional
 
-import discord
 from discord import app_commands
 
-from commands.utils import *
+from .utils.database_utils import *
+from .utils.application_view import *
+from .utils.discord_utils import *
+from .utils.formatting import *
 from config import tree, help_icon_url
 from database.calculate_debt import user_history_page_count, user_history, total_balance_with_user
 from database.permissions import can_send
@@ -31,43 +33,47 @@ async def history(interaction: discord.Interaction, who: discord.Member, show: O
                           HistoryView(user=user, member=interaction.user, with_user=with_user, ephemeral=ephemeral))
 
 
-class HistoryView(ApplicationView):
-    newest_first = True
+class HistoryView(UserApplicationView):
 
     def __init__(self, ephemeral: bool, user: RegisteredUser, member: discord.Member, with_user: RegisteredUser):
-        super().__init__(user=user, ephemeral=ephemeral, state=0)
+        super().__init__(user=user, ephemeral=ephemeral)
+        self.newest_first = True
+        self.page = 0
         self.with_user = with_user
         self.member = member
 
     # todo: refresh, page back, page front, show how you can show history with user
 
     async def to_first_page(self, i, b):
-        await self.set_state(0, i)
+        self.page = 0
+        await self.set_state(i)
 
     async def one_page_back(self, i, b):
-        await self.set_state(self.state - 1, i)
+        self.page -= 1
+        await self.set_state(i)
 
     async def one_page_forward(self, i, b):
-        await self.set_state(self.state + 1, i)
+        self.page += 1
+        await self.set_state(i)
 
     async def to_last_page(self, i, b):
-        page_count = user_history_page_count(self.user, page_size)
-        await self.set_state(page_count - 1, i)
+        self.page = user_history_page_count(self.user, self.with_user, page_size) - 1
+        await self.set_state(i)
 
     async def refresh(self, i, b):
-        await self.update(i)
+        await self.set_state(i)
 
     async def reverse_order(self, i, b):
         self.newest_first = not self.newest_first
-        await self.set_state(0, i)
+        self.page = 0
+        await self.set_state(i)
 
     def render(self) -> Iterator[str | discord.Embed | ui.Item]:
-        page_number = self.state + 1
         page_count = user_history_page_count(self.user, self.with_user, page_size)
-        is_last_page = self.state == page_count - 1
-        is_first_page = self.state == 0
+        is_last_page = self.page == page_count - 1
+        is_first_page = self.page == 0
         page_data = [*user_history(self.user, self.with_user, newest_first=self.newest_first, page_size=page_size,
-                                   page=self.state,
+                                   page=self.page,
                                    desc_max_length=20)]
         balance = total_balance_with_user(self.user, with_other=self.with_user)
         embed = discord.Embed()
@@ -87,11 +93,8 @@ class HistoryView(ApplicationView):
         embed.description += f"### total balance: {format_euro_sign(balance)}\n"
         embed.description += f"### view, edit, delete: {mention_slash_command("view")}` [unique id]`"
 
-        ids = ""
-        dates = ""
         creators = ""
         descriptions = ""
-        types = ""
         amounts = ""
         for data in page_data:
             id = f"`{data["id"]}    `"
@@ -108,7 +111,6 @@ class HistoryView(ApplicationView):
             else:
                 time = f"{mention_timestamp(timestamp, "d")}"
 
-            type_ = ""
             match data["type"]:
                 case "group_debt":
                     type_ = "👥"
@@ -120,10 +122,7 @@ class HistoryView(ApplicationView):
             descriptions += type_ + " " + description + "\n"
             creators += id + creator + "\n"
 
-        embed.add_field(name="amount" + " "*(6 + max_len) + "date", value=amounts)
-        # embed.add_field(name="date", value=dates)
-        # embed.add_field(name="type", value=types)
-        # embed.add_field(name="amount", value=amounts)
+        embed.add_field(name="amount" + " " * (6 + max_len) + "date", value=amounts)
         embed.add_field(name="description", value=descriptions)
         embed.add_field(name="unique id     creator", value=creators)
 
@@ -136,9 +135,11 @@ class HistoryView(ApplicationView):
                          )
         yield Button(label="⏪", disabled=is_first_page, _callable=self.to_first_page)
         yield Button(label="◀️", disabled=is_first_page, _callable=self.one_page_back)
-        yield Button(label=f"{page_number}/{page_count}", disabled=True, style=ButtonStyle.grey)
+        yield Button(label=f"{self.page + 1}/{page_count}", disabled=True, style=discord.ButtonStyle.grey)
         yield Button(label="▶️", disabled=is_last_page, _callable=self.one_page_forward)
         yield Button(label="⏩", disabled=is_last_page, _callable=self.to_last_page)
-        yield Button(label="↺ refresh", style=ButtonStyle.green, _callable=self.refresh)
-        yield Button(label="↑↓ reverse order", style=ButtonStyle.green, _callable=self.reverse_order)
+        yield Button(label="↺ refresh", style=discord.ButtonStyle.green, _callable=self.refresh)
+        yield Button(label="↺ refresh", style=discord.ButtonStyle.green, _callable=self.refresh)
+        yield Button(label="↑↓ reverse order", style=discord.ButtonStyle.green, _callable=self.reverse_order)
+        yield Button(label="↑↓ reverse order", style=discord.ButtonStyle.green, _callable=self.reverse_order)
         yield embed
