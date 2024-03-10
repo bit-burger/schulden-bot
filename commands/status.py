@@ -20,10 +20,10 @@ async def status(interaction: discord.Interaction, show: Optional[Literal["yes",
     await run_application(interaction, StatusView(user=user, member=interaction.user, ephemeral=ephemeral))
 
 
-class StatusView(ApplicationView):
+class StatusView(UserApplicationView):
 
     def __init__(self, ephemeral: bool, user: User, member: discord.Member):
-        super().__init__(user=user, ephemeral=ephemeral, state=0)
+        super().__init__(user=user, ephemeral=ephemeral)
         self.credit_first = True
         self.page = 0
         self.member = member
@@ -55,7 +55,7 @@ class StatusView(ApplicationView):
         page_count = user_balance_page_count(self.user, page_size)
         is_last_page = self.page == page_count - 1
         is_first_page = self.page == 0
-        page_data = [*user_balance(self.user, credit_first=self.credit_first, page_size=page_size, page=self.state)]
+        page_data = [*user_balance(self.user, credit_first=self.credit_first, page_size=page_size, page=self.page)]
         credit, debt = user_credit_and_debt(self.user)
         embed = discord.Embed(description="")
         embed.set_author(name=f"{self.member.name}", icon_url=self.member.display_avatar.url)
