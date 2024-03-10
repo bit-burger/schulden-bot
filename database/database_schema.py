@@ -19,6 +19,19 @@ class User(BaseModel):
     # dm notifications new database
     # dm notifications new database übertragung
 
+
+class UserSettings(BaseModel):
+    user = ForeignKeyField(User)
+    setting = IntegerField()
+    value = Field(null=True)
+
+    class Meta:
+        table_name = "user_settings"
+        constraints = [
+            SQL("UNIQUE (user_id, setting)")
+        ]
+
+
 class IgnoreUsers(BaseModel):
     by = ForeignKeyField(User, backref="ignored")
     ignored = ForeignKeyField(User, backref="ignored_by")
@@ -87,7 +100,6 @@ class MoneyWriteGroupParticipant(BaseModel):
     can_delete = BooleanField()
 
 
-
 # EXAMPLE:
 # from_user: 1, to_user: 2, cent_amount: -1000
 # means:
@@ -124,12 +136,11 @@ class MoneyWrite(BaseModel):
 # editing money amount after 10 minutes requires approval of other person?
 class AuditLog(BaseModel):
     group = ForeignKeyField(MoneyWriteGroup)
-    type: TextField() # create, delete, edit
-
+    type: TextField()  # create, delete, edit
 
 
 def init():
     db.connect()
     db.create_tables(
-        [User, GuildChannel, MoneyWriteGroup, MoneyWriteSubGroup, MoneyWriteGroupParticipant, MoneyWrite,
+        [User, UserSettings, GuildChannel, MoneyWriteGroup, MoneyWriteSubGroup, MoneyWriteGroupParticipant, MoneyWrite,
          IgnoreUsers, WhitelistUser])
