@@ -125,7 +125,7 @@ class WhitelistUserReset(ui.View):
     id=1201588191094906890))
 async def whitelist(interaction: discord.Interaction):
     user = check_register(interaction)
-    if (user.everyone_allowed_per_default):
+    if user.everyone_allowed_per_default:
         return await interaction.response.send_message(embed=discord.Embed(title="Whitelisting is not enabled",
                                                                            description="Use **/settings** to turn on whitelisting",
                                                                            color=0xFF0000), ephemeral=True)
@@ -148,13 +148,13 @@ class WhitelistSelect(ui.MentionableSelect):
     async def callback(self, interaction: discord.Interaction):
         self.disabled = True
         users: {discord.User} = set()
-        for object in self.values:
-            if isinstance(object, discord.User):
-                users.add(object)
-            if isinstance(object, discord.Member):
-                users.add(object)
-            if isinstance(object, discord.Role):
-                users.update(object.members)
+        for value in self.values:
+            if isinstance(value, discord.User):
+                users.add(value)
+            if isinstance(value, discord.Member):
+                users.add(value)
+            if isinstance(value, discord.Role):
+                users.update(value.members)
         users = set(filter(lambda user: not user.bot and user.id != self.user.id, users))
         user_ids = to_id_set(users) | self.already_selected_ids
         ignored_ids = user_ids & set(map(lambda ignored: ignored.ignored.id, self.user.ignored))
