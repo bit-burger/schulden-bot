@@ -64,6 +64,7 @@ def _concat_columns(ls):
         res = res.concat(s)
     return res
 
+
 def _user_history_base(user: User, with_other: User, desc_max_length):
     too_long_cond = fn.LENGTH(MoneyWriteGroup.description) > desc_max_length
     desc_is_null = MoneyWriteGroup.description.is_null()
@@ -78,6 +79,7 @@ def _user_history_base(user: User, with_other: User, desc_max_length):
 
     return MoneyWrite.select(
         MoneyWriteGroup.id,
+        MoneyWriteSubGroup.deleted_at.is_null(False).alias("is_deleted"),
         MoneyWriteSubGroup.sub_id,
         MoneyWrite.cent_amount,
         MoneyWriteGroup.created_by,
@@ -108,5 +110,6 @@ def user_history_page_count(user: User, with_other: User, page_size):
 
 def total_balance_with_user(user: User, with_other: User):
     return \
-        user.money_writes.select(fn.sum(MoneyWrite.cent_amount)).where(MoneyWrite.to_user == with_other.id).tuples()[0][
-            0]
+        user.money_writes.select(fn.sum(MoneyWrite.cent_amount)).switch(MoneyWrite).join(MoneyWriteSubGroup).where(
+            MoneyWrite.to_user == with_other.id,  MoneyWriteSubGroup.deleted_at.is_null()).tuples()[0][
+            0] or 0

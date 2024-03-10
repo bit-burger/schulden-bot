@@ -13,8 +13,8 @@ def format_euro(cent: int) -> str:
     return f"{cent // 100}.{after_point}€"
 
 
-def format_euro_sign(cent: int) -> str:
-    emoji = sign_emoji(cent)
+def format_euro_sign(cent: int, deleted=False) -> str:
+    emoji = sign_emoji(cent, deleted=deleted)
     cent = abs(cent)
     return f"{emoji}`{format_euro(cent)}`"
 
@@ -67,11 +67,14 @@ def pad_to_len(s, length):
         return s + " " * (length - len(s))
 
 
-def sign_emoji(a):
+def sign_emoji(a, deleted=False):
     if a < 0:
+        if deleted:
+            return config.minus_grey_emoji
         return config.minus_emoji
-    else:
-        return config.plus_emoji
+    elif deleted:
+        return config.plus_grey_emoji
+    return config.plus_emoji
 
 
 def to_id_set(users: [discord.User | discord.Member]) -> {int}:
