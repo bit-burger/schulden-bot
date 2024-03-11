@@ -3,7 +3,7 @@ from .utils.database_utils import *
 from .utils.application_view import *
 from .utils.formatting import *
 from config import tree
-from discord import ui, Emoji, PartialEmoji, ButtonStyle
+from discord import ui, ButtonStyle
 from functools import partial
 import discord
 
@@ -14,50 +14,6 @@ async def settings(interaction: discord.Interaction):
     await run_application(interaction, SettingsView(user))
 
 
-setting_names = {
-    Setting.whitelisting_on: "enable whitelisting",
-    Setting.max_amount: "max debt amount",
-    Setting.send_debts_per_dm: "send debt",
-    Setting.send_own_debts_per_dm: "send own debts",
-    Setting.send_deletion_requests_per_dm: "send debt deletion requests",
-    Setting.debt_interactions_public: "private debt interactions public",
-    Setting.group_debt_interactions_public: "group debt interaction public",
-}
-
-setting_short_descriptions = {
-    Setting.whitelisting_on: "Should whitelisting be enabled?",
-    Setting.max_amount: "Maximum amount of money you allow per interaction",
-    Setting.send_debts_per_dm: "Should a dm be sent if someone else registers debt with you?",
-    Setting.send_own_debts_per_dm: "Should a dm be sent each time if you register debt?",
-    Setting.send_deletion_requests_per_dm: "Maximum amount of money you allow per interaction",
-    Setting.debt_interactions_public: "Should the command messages for private debt be public",
-    Setting.group_debt_interactions_public: "Should the command messages for group debt be public?",
-}
-
-setting_long_descriptions = {
-    Setting.whitelisting_on: "If whitelisting is enabled, this means you can only register debt with people "
-                             "you have whitelisted "
-                             "(and other people can only register debt with you if you have whitelisted them).",
-    Setting.max_amount: "For each debt register the maximum amount of money that is allowed ",
-    Setting.send_debts_per_dm: "Should a dm be sent if someone else registers debt with you?",
-    Setting.send_own_debts_per_dm: "Should a dm be sent each time if you register debt?",
-    Setting.send_deletion_requests_per_dm: "Maximum amount of money you allow per interaction",
-    Setting.debt_interactions_public: "Should the command messages with the bot be made public in a server, "
-                                      "if it is concerning private debts "
-                                      "(the debts registered between only you and a single other user)?",
-    Setting.group_debt_interactions_public: "Should the command messages with the bot be made public in a server, "
-                                            "if it is concerning group debts "
-                                            "(the debts registered between you and multiple users)?",
-}
-
-setting_order = [Setting.whitelisting_on,
-                 Setting.max_amount,
-                 Setting.send_debts_per_dm,
-                 Setting.send_own_debts_per_dm,
-                 Setting.send_deletion_requests_per_dm,
-                 Setting.debt_interactions_public,
-                 Setting.group_debt_interactions_public,
-                 ]
 
 
 class SettingsView(UserApplicationView):

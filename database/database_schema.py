@@ -13,11 +13,7 @@ class BaseModel(Model):
 class User(BaseModel):
     id = IntegerField(primary_key=True)
     deleted_at = DateTimeField(null=True)
-    # (whitelisting jeder whitelisted wen anders) send_friend_invites_per_dm = BooleanField(default=False)
-    everyone_allowed_per_default = BooleanField(default=True)
     created_at = DateTimeField(default=datetime.datetime.now)
-    # dm notifications new database
-    # dm notifications new database übertragung
 
 
 class UserSettings(BaseModel):

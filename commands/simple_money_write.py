@@ -45,6 +45,10 @@ async def simple_money_write(i: discord.Interaction, amount: str, who: discord.M
                                       description=f"'**{amount}**' is not a positive sum of euro and euro cent")
     user = check_register(i)
     to_user = check_register_from_id(who.id)
+    max_interaction_error_str = max_interaction_error(user, to_user, cent_amount)
+    if max_interaction_error_str:
+        return await send_error_embed(i, title="Amount to high",
+                                      description=max_interaction_error_str)
     if not can_send(user, to_user):
         return await send_success_embed(i, title=non_wl_err,
                                         description="user may have not whitelisted you")
@@ -229,10 +233,18 @@ class DebtCommandView(UserApplicationView):
     async def change_amount_confirm(self, i, raw_amount):
         amount = str_to_euro_cent(raw_amount)
         if amount is None:
-            self.error = "amount could not be changed as 'raw_amount' is not a real"
+            self.error = f"amount could not be changed as '{raw_amount}' is not a valid euro cent amount"
+            await self.set_state(i)
             return
         if amount == 0:
             self.error = "amount could not be changed as amount has to be positive"
+            await self.set_state(i)
+            return
+        max_interaction_error_str = max_interaction_error(self.user, self.to_user, amount)
+        if max_interaction_error_str:
+            self.error = max_interaction_error_str
+            await self.set_state(i)
+            return
         self.raw_cent_amount = None
         self.cent_amount = amount
         await self.set_state(i)

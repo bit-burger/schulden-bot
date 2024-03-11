@@ -1,4 +1,5 @@
 from database.database_schema import WhitelistUser
+from database.settings import *
 from .utils.application_view import *
 from .utils.formatting import *
 from .utils.database_utils import *
@@ -11,7 +12,7 @@ from discord import ui, ButtonStyle
               guild=discord.Object(id=1201588191094906890))
 async def whitelist_view(interaction: discord.Interaction):
     user = check_register(interaction)
-    if user.everyone_allowed_per_default:
+    if not get_setting(user, Setting.whitelisting_on):
         return await interaction.response.send_message(embed=discord.Embed(title="Whitelisting is not enabled",
                                                                            description="Use **/settings** to turn on whitelisting",
                                                                            color=0xFF0000), ephemeral=True)
@@ -125,7 +126,7 @@ class WhitelistUserReset(ui.View):
     id=1201588191094906890))
 async def whitelist(interaction: discord.Interaction):
     user = check_register(interaction)
-    if user.everyone_allowed_per_default:
+    if not get_setting(user, Setting.whitelisting_on):
         return await interaction.response.send_message(embed=discord.Embed(title="Whitelisting is not enabled",
                                                                            description="Use **/settings** to turn on whitelisting",
                                                                            color=0xFF0000), ephemeral=True)

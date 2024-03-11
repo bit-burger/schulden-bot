@@ -3,6 +3,8 @@ import math
 from database.database_schema import *
 from peewee import *
 
+from database.settings import *
+
 
 def exe(sql: str, params: [any]):
     return RawQuery(sql, params).execute(db)
@@ -18,13 +20,15 @@ def _user_balance_cte(user: User):
 
     whitelist_query = user.whitelisted.select(WhitelistUser.whitelisted)
 
+    whitelist_on = get_setting(user, Setting.whitelist_on)
+
     return (user.money_writes
             .select(user_id_column, cent_amount_column)
             .join(to_user_alias, on=MoneyWrite.to_user == to_user_alias.id)
             .switch(MoneyWrite)
             .join(MoneyWriteSubGroup)
-            .where(MoneyWriteSubGroup.deleted_at.is_null() & (
-            user.everyone_allowed_per_default | user_id_column.in_(whitelist_query)))
+            .where(MoneyWriteSubGroup.deleted_at.is_null() &
+                   (not whitelist_on | user_id_column.in_(whitelist_query)))
             .group_by(user_id_column)).cte('money_write_nets', columns=('user_id', 'cent_amount'))
 
 
@@ -110,6 +114,6 @@ def user_history_page_count(user: User, with_other: User, page_size):
 
 def total_balance_with_user(user: User, with_other: User):
     return \
-        user.money_writes.select(fn.sum(MoneyWrite.cent_amount)).switch(MoneyWrite).join(MoneyWriteSubGroup).where(
-            MoneyWrite.to_user == with_other.id,  MoneyWriteSubGroup.deleted_at.is_null()).tuples()[0][
-            0] or 0
+            user.money_writes.select(fn.sum(MoneyWrite.cent_amount)).switch(MoneyWrite).join(MoneyWriteSubGroup).where(
+                MoneyWrite.to_user == with_other.id, MoneyWriteSubGroup.deleted_at.is_null()).tuples()[0][
+                0] or 0
