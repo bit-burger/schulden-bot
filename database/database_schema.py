@@ -74,6 +74,7 @@ class MoneyWriteGroup(BaseModel):
     type = TextField()  # money_give, credit, group_credit (maybe schuldenaustausch: switch von schulden von min. 3 person)
     created_by = ForeignKeyField(User)
     created_at = DateTimeField(default=datetime.datetime.now)
+    edited = BooleanField(default=False)
 
 
 # example: MoneyWriteGroup has identifier A45CH
@@ -84,16 +85,24 @@ class MoneyWriteSubGroup(BaseModel):
     group = ForeignKeyField(MoneyWriteGroup)
     specific_description = TextField(null=True)
     deleted_at = DateTimeField(null=True)
+    edited = BooleanField(default=False)
 
-    # all participants can edit description etc
 
+# if want to check if someone can delete whole group,
+# just look if they are owner and it is type "group_debt"
+# all participants can edit description etc
 
-class MoneyWriteGroupParticipant(BaseModel):
-    participant = ForeignKeyField(User)
+# for group debts, no matter if the user is the group_debtor or not,
+# they should always get a participant for the group and for the sub_group
+# but the debtor gets for every sub_group
+
+# if only you are participant with no permissions => only view the debt
+class MoneyWriteSubGroupParticipant(BaseModel):
     group = ForeignKeyField(MoneyWriteGroup)
     sub_group = ForeignKeyField(MoneyWriteSubGroup, null=True)
-    # can_request_deletion = BooleanField()
-    can_delete = BooleanField()
+    participant = ForeignKeyField(User)
+    can_request_deletion = BooleanField(default=False)
+    can_delete = BooleanField(default=False)
 
 
 # EXAMPLE:
@@ -117,8 +126,6 @@ class MoneyWrite(BaseModel):
     cent_amount = IntegerField()
 
     class Meta:
-        table_name = "money_write"
-        # primary_key = CompositeKey('group', 'from_user', 'to_user')
         constraints = [
             SQL("UNIQUE (sub_group_id, from_user_id, to_user_id)"),
             SQL("FOREIGN KEY (sub_group_id, from_user_id, to_user_id) " +
@@ -132,11 +139,12 @@ class MoneyWrite(BaseModel):
 # editing money amount after 10 minutes requires approval of other person?
 class AuditLog(BaseModel):
     group = ForeignKeyField(MoneyWriteGroup)
+    sub_group = ForeignKeyField(MoneyWriteSubGroup)
     type: TextField()  # create, delete, edit
 
 
 def init():
     db.connect()
     db.create_tables(
-        [User, UserSettings, GuildChannel, MoneyWriteGroup, MoneyWriteSubGroup, MoneyWriteGroupParticipant, MoneyWrite,
+        [User, UserSettings, GuildChannel, MoneyWriteGroup, MoneyWriteSubGroup, MoneyWriteSubGroupParticipant, MoneyWrite,
          IgnoreUsers, WhitelistUser])
