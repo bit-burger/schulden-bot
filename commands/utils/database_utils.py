@@ -5,6 +5,12 @@ from database.database_schema import User
 from database.settings import *
 
 
+def ephemeral_from_arg(user: User, show_arg: str | None):
+    if not show_arg:
+        return get_setting(user, Setting.debt_interactions_public)
+    return show_arg != "yes"
+
+
 def check_register(interaction: discord.Interaction) -> User:
     return check_register_from_id(interaction.user.id)
 
