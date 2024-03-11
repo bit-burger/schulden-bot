@@ -17,11 +17,11 @@ page_size = 5
 
 @tree.command(name='history', description="history of debt with single person",
               guild=discord.Object(id=1201588191094906890))
-@app_commands.describe(show="if this slash command should be viewable from outside (default: no)")
+@app_commands.describe(show="if this slash command should be viewable from outside (change default in /settings)")
 @app_commands.rename(who="with")
 async def history(interaction: discord.Interaction, who: discord.Member, show: Optional[Literal["yes", "no"]]):
-    ephemeral = (show != "yes")
     user = check_register(interaction)
+    ephemeral = ephemeral_from_arg(user, show)
     with_user = check_register_from_id(who.id)
     if not can_send(user, with_user):
         return await send_success_embed(interaction, title="Cannot view debt with this person",

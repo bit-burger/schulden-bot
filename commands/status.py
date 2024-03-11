@@ -13,10 +13,10 @@ page_size = 2
 
 
 @tree.command(name='status', description="status of debt with all users", guild=discord.Object(id=1201588191094906890))
-@app_commands.describe(show="if this slash command should be viewable from outside (default: no)")
+@app_commands.describe(show="if this slash command should be viewable from outside (change default in /settings)")
 async def status(interaction: discord.Interaction, show: Optional[Literal["yes", "no"]]):
-    ephemeral = (show != "yes")
     user = check_register(interaction)
+    ephemeral = ephemeral_from_arg(user, show)
     await run_application(interaction, StatusView(user=user, member=interaction.user, ephemeral=ephemeral))
 
 
