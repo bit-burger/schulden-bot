@@ -7,7 +7,7 @@ from database.settings import *
 
 def ephemeral_from_arg(user: User, show_arg: str | None):
     if not show_arg:
-        return get_setting(user, Setting.debt_interactions_public)
+        return bool(get_setting(user, Setting.debt_interactions_public))
     return show_arg != "yes"
 
 
