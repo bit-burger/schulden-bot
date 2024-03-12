@@ -6,7 +6,6 @@ from database.database_schema import User, UserSettings
 
 class Setting(Enum):
     whitelisting_on = 0
-    # whitelist_dm_requests = 1
     max_amount = 2
     send_deletion_requests_per_dm = 3
     send_debts_per_dm = 4

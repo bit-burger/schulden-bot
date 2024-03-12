@@ -58,6 +58,16 @@ def mention_datetime(datetime, type):
     return f"<t:{int(datetime.timestamp())}:{type}>"
 
 
+def format_group_type(type: str):
+    match type:
+        case "group_debt":
+            return "👥"
+        case "money_give":
+            return "💶"
+        case _:
+            return "📒"  # 📒🗄📁🗂️📝💾
+
+
 def mention_relative_datetime(timestamp):
     return mention_datetime(timestamp, "R")
 

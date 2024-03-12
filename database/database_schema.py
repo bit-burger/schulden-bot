@@ -69,12 +69,13 @@ class GuildChannel(BaseModel):
 class MoneyWriteGroup(BaseModel):
     id = TextField(primary_key=True)
     description = TextField(null=True)
+    description_edited = BooleanField(default=False)
     image_url = TextField(null=True)
+    image_url_edited = BooleanField(default=False)
     guild_channel = ForeignKeyField(GuildChannel, null=True)
     type = TextField()  # money_give, credit, group_credit (maybe schuldenaustausch: switch von schulden von min. 3 person)
     created_by = ForeignKeyField(User)
     created_at = DateTimeField(default=datetime.datetime.now)
-    edited = BooleanField(default=False)
 
 
 # example: MoneyWriteGroup has identifier A45CH
@@ -82,7 +83,7 @@ class MoneyWriteGroup(BaseModel):
 #          => get to MoneySubWriteGroup: A45CH(b)
 class MoneyWriteSubGroup(BaseModel):
     sub_id = TextField(null=True)  # should be a single letter or null if there is only one sub group
-    group = ForeignKeyField(MoneyWriteGroup)
+    group = ForeignKeyField(MoneyWriteGroup, backref="sub_groups")
     specific_description = TextField(null=True)
     deleted_at = DateTimeField(null=True)
     edited = BooleanField(default=False)
@@ -97,7 +98,9 @@ class MoneyWriteSubGroup(BaseModel):
 # but the debtor gets for every sub_group
 
 # if only you are participant with no permissions => only view the debt
-class MoneyWriteSubGroupParticipant(BaseModel):
+
+# but for simple debts, only group is needed, as you cannot view per sub group (no unique identifier for the sub_group)
+class MoneyWriteGroupParticipant(BaseModel):
     group = ForeignKeyField(MoneyWriteGroup)
     sub_group = ForeignKeyField(MoneyWriteSubGroup, null=True)
     participant = ForeignKeyField(User)
@@ -120,7 +123,7 @@ class MoneyWriteSubGroupParticipant(BaseModel):
 # - 1 owes 2 10$
 # => from_user is 10$ in plus, got 10$ too much
 class MoneyWrite(BaseModel):
-    sub_group = ForeignKeyField(MoneyWriteSubGroup)
+    sub_group = ForeignKeyField(MoneyWriteSubGroup, backref="money_writes")
     from_user = ForeignKeyField(User, backref="money_writes")
     to_user = ForeignKeyField(User)
     cent_amount = IntegerField()
@@ -129,7 +132,7 @@ class MoneyWrite(BaseModel):
         constraints = [
             SQL("UNIQUE (sub_group_id, from_user_id, to_user_id)"),
             SQL("FOREIGN KEY (sub_group_id, from_user_id, to_user_id) " +
-                " REFERENCES money_write(sub_group_id, to_user_id, from_user_id)")]
+                " REFERENCES moneywrite(sub_group_id, to_user_id, from_user_id)")]
 
 
 ### Table Audit Log
@@ -146,5 +149,5 @@ class AuditLog(BaseModel):
 def init():
     db.connect()
     db.create_tables(
-        [User, UserSettings, GuildChannel, MoneyWriteGroup, MoneyWriteSubGroup, MoneyWriteSubGroupParticipant, MoneyWrite,
+        [User, UserSettings, GuildChannel, MoneyWriteGroup, MoneyWriteSubGroup, MoneyWriteGroupParticipant, MoneyWrite,
          IgnoreUsers, WhitelistUser])
