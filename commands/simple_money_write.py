@@ -10,7 +10,7 @@ from .utils.application_view import *
 from .utils.database_utils import *
 from .utils.formatting import *
 from .utils.discord_utils import *
-from config import tree
+from config import tree, help_icon_url
 from database.database_schema import *
 from database.permissions import can_send
 from .attachment import image_listener
@@ -200,11 +200,9 @@ class DebtCommandView(UserApplicationView):
         group = MoneyWriteGroup.create(id=self.unique_identifier, description=self.description, created_by=self.user,
                                        type=self.type,
                                        picture=self.url)
-        sub_group = MoneyWriteSubGroup.create(sub_group=group)
-        MoneyWriteSubGroupParticipant.create(group=group, sub_group=group, participant=self.user, can_delete=give)
-        MoneyWriteSubGroupParticipant.create(group=group, sub_group=group, participant=self.to_user, can_delete=not give)
-        MoneyWriteSubGroupParticipant.create(group=group, participant=self.user)
-        MoneyWriteSubGroupParticipant.create(group=group, participant=self.to_user)
+        sub_group = MoneyWriteSubGroup.create(group=group)
+        MoneyWriteGroupParticipant.create(group=group, participant=self.user, can_delete=give)
+        MoneyWriteGroupParticipant.create(group=group, participant=self.to_user, can_delete=not give)
         cent_amount = self.cent_amount
         if self.give:
             cent_amount *= -1
@@ -212,7 +210,7 @@ class DebtCommandView(UserApplicationView):
             'sub_group': sub_group, 'cent_amount': -cent_amount, 'from_user': self.to_user, 'to_user': self.user}]
         MoneyWrite.insert_many(rows).execute()
 
-        self.timestamp = group.created_at()
+        self.timestamp = group.created_at
         self.state = "finished"
         await self.set_state(i)
 
@@ -315,12 +313,12 @@ class DebtCommandView(UserApplicationView):
             embed.add_field(name="image:", value="to edit image use: " + mention_slash_command("edit_image"),
                             inline=False)
             embed.set_image(url=self.url)
-            yield Button(label="delete picture", style=ButtonStyle.blurple, _callable=self.delete_picture, row=4)
+            yield Button(label="delete picture", style=ButtonStyle.red, _callable=self.delete_picture, row=4)
         else:
             embed.add_field(name="image:", value="to add image use: " + mention_slash_command("add_image"),
                             inline=False)
         if self.error:
-            embed.set_footer(text=self.error)
+            embed.set_footer(icon_url=help_icon_url, text=self.error)
         yield embed
 
     def direction_text(self):
