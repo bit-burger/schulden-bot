@@ -106,11 +106,10 @@ class HistoryView(UserApplicationView):
             description = (data["description"] or "-")
             creator = f"<@{data["created_by"]}>  "
             created_at: datetime.datetime = data["created_at"]
-            timestamp = int(created_at.timestamp())
             if created_at.date() == datetime.datetime.today().date():
-                time = f"{mention_timestamp(timestamp, "t")}"
+                time = f"{mention_datetime(created_at, "t")}"
             else:
-                time = f"{mention_timestamp(timestamp, "d")}"
+                time = f"{mention_datetime(created_at, "d")}"
 
             match data["type"]:
                 case "group_debt":

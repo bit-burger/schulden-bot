@@ -54,12 +54,12 @@ def mention_slash_command(name: str):
 # f   April 2021 16:20	            Short Date/Time
 # F	  Tuesday, 20 April 2021 16:20	Long Date/Time
 # R	  2 months ago	                Relative Time
-def mention_timestamp(timestamp, type):
-    return f"<t:{timestamp}:{type}>"
+def mention_datetime(datetime, type):
+    return f"<t:{int(datetime.timestamp())}:{type}>"
 
 
-def mention_relative_timestamp(timestamp):
-    return mention_timestamp(int(timestamp), "R")
+def mention_relative_datetime(timestamp):
+    return mention_datetime(timestamp, "R")
 
 
 def pad_to_len(s, length):

@@ -212,7 +212,7 @@ class DebtCommandView(UserApplicationView):
             'sub_group': sub_group, 'cent_amount': -cent_amount, 'from_user': self.to_user, 'to_user': self.user}]
         MoneyWrite.insert_many(rows).execute()
 
-        self.timestamp = int(group.created_at.timestamp())
+        self.timestamp = group.created_at()
         self.state = "finished"
         await self.set_state(i)
 
@@ -355,7 +355,7 @@ class DebtCommandView(UserApplicationView):
                                           " has been registered: \n" + self.direction_text(),
                               colour=0x00FF00)
         embed.add_field(name="amount:", value=f"`{format_euro(self.cent_amount)}`")
-        embed.add_field(name="time:", value=mention_relative_timestamp(self.timestamp))
+        embed.add_field(name="time:", value=mention_relative_datetime(self.timestamp))
         embed.add_field(name="unique id:", value=f"`{self.unique_identifier}`")
         if self.description:
             embed.add_field(name="description", value=self.description, inline=False)
