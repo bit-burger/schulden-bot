@@ -7,3 +7,4 @@ from . import attachment
 from . import status
 from . import history
 from . import view
+from . import example_persistent

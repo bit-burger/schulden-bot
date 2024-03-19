@@ -1,9 +1,14 @@
 import discord
 import config
 import commands
+
 import database.database_schema
+from commands.example_persistent import ExamplePersistent
 
 database.database_schema.init()
+
+config.client.add_dynamic_items(ExamplePersistent)
+
 
 @config.client.event
 async def on_ready():
