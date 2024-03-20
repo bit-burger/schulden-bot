@@ -20,6 +20,13 @@ def is_valid_id(uid: str):
     return is_group_id(uid) or is_sub_group_id(uid)
 
 
+def get_participant(uid: str, user: User):
+    uid = uid.upper()
+    if is_group_id(uid):
+        return MoneyWriteGroupParticipant.select().join(MoneyWriteGroup).where(
+            MoneyWriteGroupParticipant.participant == user.id,  MoneyWriteGroupParticipant.sub_group.is_null()).get()
+
+
 def get_group(uid: str, user: User):
     if not is_group_id(uid):
         return
