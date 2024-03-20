@@ -52,7 +52,7 @@ class ButtonSystem(DynamicItem[discord.ui.Button], template=""):
 
     def __init_subclass__(cls, name):
         cls.name = name
-        super().__init_subclass__(template=f"{name}:(?P<button_name>\\w+):(?P<data>.*)")
+        super().__init_subclass__(template=f"{name}:(?P<ephemeral>.):(?P<button_name>\\w+):(?P<data>.*)")
 
     def __init__(self, data: Tuple[int | str, ...], *, ephemeral: bool, button_name: str = None,
                  button: discord.ui.Button = None):
@@ -81,7 +81,7 @@ class ButtonSystem(DynamicItem[discord.ui.Button], template=""):
     @classmethod
     async def from_custom_id(cls, interaction: discord.Interaction, item: discord.ui.Button, match: re.Match[str], /):
         return cls(decode_into_tuple(match.group("data")), button_name=match.group("button_name"), button=item,
-                   ephemeral=True)
+                   ephemeral=match.group("ephemeral") == "e")
 
     @classmethod
     async def run_system(cls, interaction: Interaction, data: Tuple[str | int, ...], *, ephemeral: bool = True):
@@ -104,7 +104,7 @@ class ButtonSystem(DynamicItem[discord.ui.Button], template=""):
             if isinstance(component, str):
                 message_str += component
             if isinstance(component, Button):
-                custom_id = f"{type(self).name}:{component.button_name}:{encode_tuple(self._data)}"
+                custom_id = f"{type(self).name}:{"e" if self.ephemeral else "n"}:{component.button_name}:{encode_tuple(self._data)}"
                 button = discord.ui.Button(custom_id=custom_id, label=component.label, style=component.style,
                                            disabled=component.disabled,
                                            emoji=component.emoji, url=component.url, row=component.row)
@@ -119,10 +119,10 @@ class ButtonSystem(DynamicItem[discord.ui.Button], template=""):
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         self._last_interaction = interaction
-        check_method_name = "check" + self.button_name[0].upper() + self.button_name[1:]
+        check_method_name = "check_" + self.button_name
         check_method = getattr(self, check_method_name, None)
         if check_method:
-            return check_method()
+            return await check_method()
         return True
 
     async def callback(self, interaction: Interaction[ClientT]) -> Any:
