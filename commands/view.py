@@ -2,6 +2,7 @@ import asyncio
 from typing import Literal, Optional
 
 from discord import app_commands, ButtonStyle
+from discord.ui.dynamic import DynamicItem
 
 from .attachment import image_listener
 from .utils.formatting import *
@@ -20,29 +21,45 @@ from database.groups import *
                        unique_id="the unique id of the debt/payment entry you want to view")
 async def view(interaction: discord.Interaction, unique_id: str, show: Optional[Literal['yes', 'no']] = None):
     user = check_register(interaction)
-    ephemeral = ephemeral_from_arg(user, show)
+    if is_group_id(unique_id):
+        ephemeral = ephemeral_group_from_arg(user, show)
+    else:
+        ephemeral = ephemeral_from_arg(user, show)
     if not is_valid_id(unique_id):
         return await send_error_embed(interaction, title="Error", description="not a valid id")
     if not get_group(unique_id, user) and not get_sub_group(unique_id, user):
         return await send_error_embed(interaction, "Not found",
                                       description=f"debt entry does not exist with id `{unique_id}` "
                                                   "or you do not have any permission to access this entry")
+
     await run_application(interaction, DebtView(user, unique_id, ephemeral))
 
 
 class DebtView(UserApplicationView):
-    def __init__(self, user: discord.User, unique_id: str, ephemeral, group=None, sub_groups=None):
+
+    def __init__(self, user: User, unique_id: str, ephemeral, group=None, sub_groups=None, participant=None):
         self.unique_id = unique_id
         super().__init__(user, ephemeral)
         self.group = group
         self.sub_groups = sub_groups
-        if not group:
+        self.participant = participant
+        if not group or not sub_groups or not participant:
             self.set_group_and_subgroups()
         image_listener.add_listener(self.user.id, self)
+        if self.group.type == "credit":
+            self.name = "debt entry"
+        elif self.group.type == "group_credit":
+            self.name = "group debt entry"
+        elif self.group.type == "money_give":
+            self.name = "payment entry"
+        else:
+            raise "embed type does not exist"
+        self.is_deleted = False
 
     def set_group_and_subgroups(self):
         self.group = get_group(self.unique_id, self.user)
         self.sub_groups = [*self.group.sub_groups]
+        self.participant = get_participant(self.unique_id, self.user)
 
     def render(self) -> Iterator[str | discord.Embed | ui.Item]:
         if is_group_id(self.unique_id):
@@ -69,7 +86,7 @@ class DebtView(UserApplicationView):
         await self.set_state(i)
 
     async def delete_picture(self, i, b):
-        self.group.url = None
+        self.group.image_url = None
         self.group.image_url_edited = True
         self.group.save()
         await self.set_state(i)
@@ -80,26 +97,31 @@ class DebtView(UserApplicationView):
         self.group.image_url_edited = True
         self.group.save()
         await asyncio.gather(
-            run_application(interaction, DebtView(
-                user=self.user,
-                unique_id=self.unique_id,
-                ephemeral=self.ephemeral,
-                group=self.group,
-                sub_groups=self.sub_groups
-            )),
+            run_application(interaction, self),
             self.last_interaction.delete_original_response()
         )
+
+    async def delete(self, i: discord.Interaction, b):
+        await i.response.send_message(
+            embed=discord.Embed(title="confirm", description=f"do you really want to delete this {self.name}?",
+                                color=0xFF0000),
+            view=DeleteConfirm(uid=self.unique_id, name=self.name, view=self, ephemeral=self.ephemeral,
+                               subgroups=self.sub_groups, user=self.user))
+
+    async def delete_confirmed(self):
+        if not self.is_deleted:
+            await self.last_interaction.delete_original_response()
+            self.clean_up()
+
+    async def request_delete(self, i, b):
+        ...
 
     def render_group(self):
         deleted = all(map(lambda s_g: s_g.deleted_at is not None, self.sub_groups))
         # edited = any(map(lambda s_g: s_g.edited is True, self.sub_groups)) or self.group.description_edited
         embed = discord.Embed(color=0xFF0000 if deleted else None)
-        if self.group.type == "credit":
-            embed.description = "### debt entry"
-        elif self.group.type == "group_credit":
-            embed.description = "### group debt entry"
-        elif self.group.type == "money_give":
-            embed.description = "### payment entry"
+
+        embed.description = "### " + self.name
 
         if deleted:
             embed.description += f" {trash_can_emoji} (deleted)"
@@ -130,25 +152,31 @@ class DebtView(UserApplicationView):
                             value=f">>> {self.group.description}" if self.group.description else f"`deleted` {trash_can_emoji}",
                             inline=False)
         if self.group.description:
-            yield Button(label="delete description", style=ButtonStyle.red, _callable=self.delete_description, row=3)
-            yield Button(label="edit description", style=ButtonStyle.blurple, _callable=self.change_description, row=3)
+            yield Button(label="delete description", style=ButtonStyle.red, _callable=self.delete_description, row=2)
+            yield Button(label="edit description", style=ButtonStyle.blurple, _callable=self.change_description, row=2)
         else:
-            yield Button(label="add description", style=ButtonStyle.green, _callable=self.change_description, row=3)
+            yield Button(label="add description", style=ButtonStyle.green, _callable=self.change_description, row=2)
         if self.group.image_url:
             embed.add_field(name=f"image{" (edited)" if self.group.image_url_edited else ""}:",
                             value="to edit image use: " + mention_slash_command("edit_image"),
                             inline=False)
             embed.set_image(url=self.group.image_url)
-            yield Button(label="delete picture", style=ButtonStyle.red, _callable=self.delete_picture, row=4)
+            yield Button(label="delete picture", style=ButtonStyle.red, _callable=self.delete_picture, row=3)
         else:
             embed.add_field(name="image:", value="to add image use: " + mention_slash_command("add_image"),
                             inline=False)
         embed.set_footer(icon_url=help_icon_url, text=f"positive: you owe this person,  "
                                                       f"negative: this person owes you")
+        if not deleted:
+            if self.participant.can_delete:
+                yield Button(label=f"delete this {self.name}", row=4, style=ButtonStyle.red, _callable=self.delete)
+            elif self.participant.can_request_deletion:
+                yield Button(label=f"request deleting this {self.name}", row=4, style=ButtonStyle.red,
+                             _callable=self.request_delete)
         yield embed
 
     def clean_up(self):
-        image_listener.remove_listener(self.user.id, self)
+        image_listener.remove_listener(self.user.id)
 
 
 class DescriptionModal(discord.ui.Modal):
@@ -169,3 +197,34 @@ class DescriptionModal(discord.ui.Modal):
 
     async def on_submit(self, interaction: discord.Interaction):
         await self.debt_command_view.change_description_confirm(interaction, self.name.value)
+
+
+class DeleteConfirm(discord.ui.View):
+    def __init__(self, uid: str, name: str, view: DebtView, ephemeral, subgroups, user: User):
+        super().__init__()
+        self.uid = uid
+        self.name = name
+        self.view = view
+        self.ephemeral = ephemeral
+        self.subgroups = subgroups
+        self.user = user
+
+    @discord.ui.button(label='delete', style=discord.ButtonStyle.red)
+    async def confirm(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await self.view.delete_confirmed()
+        if is_group_id(self.uid):
+            for subgroup in self.subgroups:
+                subgroup.deleted_at = datetime.datetime.now()
+            MoneyWriteSubGroup.bulk_update(self.subgroups, fields=["deleted_at"])
+        else:
+            raise "not implemented"
+        await run_application(interaction, DebtView(unique_id=self.uid, ephemeral=self.ephemeral, user=self.user),
+                              is_initial=False)
+        self.stop()
+
+    @discord.ui.button(label='cancel', style=discord.ButtonStyle.blurple)
+    async def cancel(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.delete_original_response()
+        self.stop()
+
+

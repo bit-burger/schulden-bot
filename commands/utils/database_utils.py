@@ -1,3 +1,5 @@
+from typing import Literal
+
 import discord
 
 from commands.utils.formatting import mention_slash_command, format_euro
@@ -8,6 +10,12 @@ from database.settings import *
 def ephemeral_from_arg(user: User, show_arg: str | None):
     if not show_arg:
         return bool(get_setting(user, Setting.debt_interactions_public))
+    return show_arg != "yes"
+
+
+def ephemeral_group_from_arg(user: User, show_arg: Literal["yes", "no"] | None):
+    if not show_arg:
+        return bool(get_setting(user, Setting.group_debt_interactions_public))
     return show_arg != "yes"
 
 
