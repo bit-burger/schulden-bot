@@ -191,8 +191,6 @@ class DebtCommandView(UserApplicationView):
         match self.state:
             case "confirmation":
                 yield from self.render_confirmation()
-            case "finished":
-                yield from self.render_finished()
             case "cancelled":
                 yield Embed(title="Canceled slash command")
 
@@ -201,7 +199,7 @@ class DebtCommandView(UserApplicationView):
                                        type=self.type,
                                        picture=self.url)
         sub_group = MoneyWriteSubGroup.create(group=group)
-        MoneyWriteGroupParticipant.create(group=group, participant=self.user, can_delete=give)
+        self_participant = MoneyWriteGroupParticipant.create(group=group, participant=self.user, can_delete=give)
         MoneyWriteGroupParticipant.create(group=group, participant=self.to_user, can_delete=not give)
         cent_amount = self.cent_amount
         if self.give:
@@ -211,8 +209,13 @@ class DebtCommandView(UserApplicationView):
         MoneyWrite.insert_many(rows).execute()
 
         self.timestamp = group.created_at
-        self.state = "finished"
-        await self.set_state(i)
+        from commands.view import DebtView
+
+        self.clean_up()
+        await run_application(i, DebtView(user=self.user, unique_id=group.id, group=group, sub_groups=[sub_group],
+                                          participant=self_participant,
+                                          ephemeral=False), is_initial=False)
+        # await self.set_state(i)
 
     async def cancel(self, i, b):
         self.stop()
@@ -271,7 +274,7 @@ class DebtCommandView(UserApplicationView):
 
     def render_confirmation(self):
         embed = Embed(title="Confirmation",
-                      description=self.confirmation_text() + ", after confirming you cannot change anything")
+                      description=self.confirmation_text() + " After confirming you cannot change the **amount**")
         yield Button(label="Confirm", style=ButtonStyle.green, _callable=self.confirm, row=0)
         yield Button(label="Cancel", style=ButtonStyle.red, _callable=self.cancel, row=0)
         embed.add_field(name="direction", value=self.direction_text(), inline=False)
@@ -343,27 +346,11 @@ class DebtCommandView(UserApplicationView):
         if self.type == "money_give":
             return f"Do you want to register that {a} gave you {m}?"
         if not self.give:
-            return f"Do you want to register that you owe {m} {a}"
-        return f"Do you want to register that {m} owes you {a}"
-
-    def render_finished(self):
-        embed = discord.Embed(title="Confirmed!",
-                              description=(
-                                              "Debt" if self.type == "credit" else "Payment") +
-                                          " has been registered: \n" + self.direction_text(),
-                              colour=0x00FF00)
-        embed.add_field(name="amount:", value=f"`{format_euro(self.cent_amount)}`")
-        embed.add_field(name="time:", value=mention_relative_datetime(self.timestamp))
-        embed.add_field(name="unique id:", value=f"`{self.unique_identifier}`")
-        if self.description:
-            embed.add_field(name="description", value=self.description, inline=False)
-        if self.url:
-            embed.add_field(name="image:", value="", inline=False)
-            embed.set_image(url=self.url)
-        yield embed
+            return f"Do you want to register that you owe {m} {a}?"
+        return f"Do you want to register that {m} owes you {a}?"
 
     def clean_up(self):
-        image_listener.remove_listener(self.user.id, self)
+        image_listener.remove_listener(self.user.id)
 
 
 class DescriptionModal(discord.ui.Modal):
