@@ -121,5 +121,6 @@ def clean_up(self):
     ...
 
 
-async def run_application(interaction: discord.Interaction, application: ApplicationView):
+async def run_application(interaction: discord.Interaction, application: ApplicationView, is_initial=True):
+    application.is_initial = is_initial
     await application._render(interaction, application.render())
