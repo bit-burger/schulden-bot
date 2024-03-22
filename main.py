@@ -4,10 +4,11 @@ import commands
 
 import database.database_schema
 from commands.example_persistent import ExamplePersistent
+from commands.view_entry import DebtView
 
 database.database_schema.init()
 
-config.client.add_dynamic_items(ExamplePersistent)
+config.client.add_dynamic_items(ExamplePersistent, DebtView)
 
 
 @config.client.event
