@@ -6,5 +6,5 @@ from . import simple_money_write
 from . import attachment
 from . import status
 from . import history
-from . import view
+from . import view_entry
 from . import example_persistent
