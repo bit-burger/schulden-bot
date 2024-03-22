@@ -22,9 +22,12 @@ def is_valid_id(uid: str):
 
 def get_participant(uid: str, user: User):
     uid = uid.upper()
-    if is_group_id(uid):
-        return MoneyWriteGroupParticipant.select().join(MoneyWriteGroup).where(
-            MoneyWriteGroupParticipant.participant == user.id,  MoneyWriteGroupParticipant.sub_group.is_null()).get()
+    try:
+        if is_group_id(uid):
+            return MoneyWriteGroupParticipant.select().join(MoneyWriteGroup).where(
+                MoneyWriteGroupParticipant.participant == user.id,  MoneyWriteGroupParticipant.sub_group.is_null()).get()
+    except:
+        return None
 
 
 def get_group(uid: str, user: User):
