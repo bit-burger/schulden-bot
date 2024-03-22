@@ -146,8 +146,16 @@ class AuditLog(BaseModel):
     type: TextField()  # create, delete, edit
 
 
+class ViewDebtEntryMessages(BaseModel):
+    debt_entry = TextField()
+    user_id = IntegerField()
+    channel_id = IntegerField()
+    message_id = IntegerField()
+    created_at = DateTimeField(default=datetime.datetime.now)
+
+
 def init():
     db.connect()
     db.create_tables(
         [User, UserSettings, GuildChannel, MoneyWriteGroup, MoneyWriteSubGroup, MoneyWriteGroupParticipant, MoneyWrite,
-         IgnoreUsers, WhitelistUser])
+         IgnoreUsers, WhitelistUser, ViewDebtEntryMessages])
