@@ -16,6 +16,8 @@ from .utils.persistent_view import ButtonSystem, Button
 
 _interaction_message_cache = dict()
 
+# TODO: _ephermeral_interaction_cache = dict()
+
 
 async def edit_view_debt_interactions(unique_id, user_id):
     for entry in ViewDebtEntryMessages.select().where(ViewDebtEntryMessages.debt_entry == unique_id):
@@ -25,7 +27,7 @@ async def edit_view_debt_interactions(unique_id, user_id):
             else:
                 channel = await client.fetch_channel(entry.channel_id)
                 message = await channel.fetch_message(entry.message_id)
-            await DebtView.run_system_on_message(message, (entry.debt_entry, entry.user_id))
+            await DebtView.run_system_on_message(message, (entry.debt_entry, entry.user_id, False))
         except:
             ...
 
@@ -53,11 +55,12 @@ async def view(interaction: discord.Interaction, unique_id: str, show: Optional[
     #     interaction.delete_original_response(),
     #     DebtView.run_system_on_channel(interaction.channel, (unique_id, user.id)),
     # )
-    await DebtView.run_system_on_interaction(interaction, (unique_id, user.id), ephemeral=ephemeral),
-    message = await interaction.original_response()
-    _interaction_message_cache[message.id] = message
-    ViewDebtEntryMessages.create(message_id=message.id, channel_id=message.channel.id, debt_entry=unique_id,
-                                 user_id=user.id)
+    await DebtView.run_system_on_interaction(interaction, (unique_id, user.id, ephemeral), ephemeral=ephemeral),
+    if not ephemeral:
+        message = await interaction.original_response()
+        _interaction_message_cache[message.id] = message
+        ViewDebtEntryMessages.create(message_id=message.id, channel_id=message.channel.id, debt_entry=unique_id,
+                                     user_id=user.id)
 
 
 class DebtView(ButtonSystem, name="dv"):
@@ -85,6 +88,10 @@ class DebtView(ButtonSystem, name="dv"):
     def user_id(self):
         return self.data[1]
 
+    @property
+    def hidden(self):
+        return self.data[2]
+
     async def check_edit(self):
         user_id = self.current_interaction.user.id
         participant = get_participant(self.unique_id, User.get_by_id(user_id))
@@ -94,7 +101,8 @@ class DebtView(ButtonSystem, name="dv"):
         user_id = self.current_interaction.user.id
         await run_application(self.current_interaction,
                               DebtEdit(self.group, self.sub_groups, self.participant, self.unique_id, self.name,
-                                       user_id=user_id))
+                                       user_id=user_id, hidden=self.hidden, ac_interaction=self.current_interaction),
+                              is_initial=not self.hidden)
 
     def render(self) -> Iterable[Button | discord.Embed | str]:
         if is_group_id(self.unique_id):
@@ -152,7 +160,7 @@ class DebtView(ButtonSystem, name="dv"):
 
 # use select to
 class DebtEdit(ApplicationView):
-    def __init__(self, group, sub_groups, participant, uid, name, user_id):
+    def __init__(self, group, sub_groups, participant, uid, name, user_id, hidden, ac_interaction):
         super().__init__()
         self.group = group
         self.sub_groups = sub_groups
@@ -163,6 +171,8 @@ class DebtEdit(ApplicationView):
         self.user_id = user_id
         self.saved = False
         self.deleted = False
+        self.hidden = hidden
+        self.ac_interaction = ac_interaction
 
         image_listener.add_listener(self.user_id, self)
 
@@ -195,16 +205,24 @@ class DebtEdit(ApplicationView):
             embed=discord.Embed(title="confirm", description=f"do you really want to delete this {self.name}?",
                                 color=0xFF0000),
             view=DeleteConfirm(name=self.name,
-                               subgroups=self.sub_groups, edit_interaction=i, uid=self.uid, debt_edit=self, user_id=self.user_id))
+                               subgroups=self.sub_groups, edit_interaction=self.ac_interaction, uid=self.uid,
+                               debt_edit=self,
+                               user_id=self.user_id, hidden=self.hidden), ephemeral=True)
 
     async def request_delete(self, i: discord.Interaction, b):
         ...
 
     async def save(self, i, b):
         self.group.save()
-        self.saved = True
-        await self.set_state(i)
-        await edit_view_debt_interactions(self.uid, self.user_id)
+        if self.hidden:
+            await DebtView.run_system_on_interaction(i, (self.uid, self.user_id, self.hidden), is_initial=False)
+            await i.response.send_message(
+                embed=discord.Embed(title="Saved successfully", description="your changes have been saved successfully",
+                                    color=0x00FF00))
+        else:
+            self.saved = True
+            await self.set_state(i)
+            await edit_view_debt_interactions(self.uid, self.user_id)
 
     async def cancel(self, i, b):
         await i.response.defer()
@@ -296,7 +314,7 @@ class DebtEdit(ApplicationView):
 
 
 class DeleteConfirm(discord.ui.View):
-    def __init__(self, uid: str, name: str, subgroups, edit_interaction, debt_edit: DebtEdit, user_id):
+    def __init__(self, uid: str, name: str, subgroups, edit_interaction, debt_edit: DebtEdit, user_id, hidden):
         super().__init__()
         self.uid = uid
         self.name = name
@@ -304,6 +322,7 @@ class DeleteConfirm(discord.ui.View):
         self.edit_interaction = edit_interaction
         self.debt_edit = debt_edit
         self.user_id = user_id
+        self.hidden = hidden
 
     @discord.ui.button(label='delete', style=discord.ButtonStyle.red)
     async def confirm(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -313,13 +332,20 @@ class DeleteConfirm(discord.ui.View):
             MoneyWriteSubGroup.bulk_update(self.subgroups, fields=["deleted_at"])
         else:
             raise "not implemented"
+        await interaction.response.defer()
         await interaction.delete_original_response()
         self.debt_edit.clean_up()
         self.stop()
-        await edit_view_debt_interactions(self.uid, self.user_id)
+        if self.hidden:
+            # on stop
+            await DebtView.run_system_on_interaction_edit(self.edit_interaction, (self.uid, self.user_id, True))
+        else:
+            await asyncio.gather(self.edit_interaction.delete_original_response(),
+                                 edit_view_debt_interactions(self.uid, self.user_id))
 
     @discord.ui.button(label='cancel', style=discord.ButtonStyle.blurple)
     async def cancel(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.defer()
         await interaction.delete_original_response()
         self.stop()
 

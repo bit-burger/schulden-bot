@@ -212,7 +212,7 @@ class DebtCommandView(UserApplicationView):
         self.timestamp = group.created_at
 
         self.clean_up()
-        await DebtView.run_system_on_interaction(i, (self.unique_identifier, self.user.id))
+        await DebtView.run_system_on_interaction(i, (self.unique_identifier, self.user.id, True), is_initial=False)
 
     async def cancel(self, i, b):
         self.stop()
