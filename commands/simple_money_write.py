@@ -14,6 +14,7 @@ from config import tree, help_icon_url
 from database.database_schema import *
 from database.permissions import can_send
 from .attachment import image_listener
+from .view_entry import DebtView
 
 
 # all commands:
@@ -209,13 +210,9 @@ class DebtCommandView(UserApplicationView):
         MoneyWrite.insert_many(rows).execute()
 
         self.timestamp = group.created_at
-        from commands.view import DebtView
 
         self.clean_up()
-        await run_application(i, DebtView(user=self.user, unique_id=group.id, group=group, sub_groups=[sub_group],
-                                          participant=self_participant,
-                                          ephemeral=False), is_initial=False)
-        # await self.set_state(i)
+        await DebtView.run_system_on_interaction(i, (self.unique_identifier, self.user.id))
 
     async def cancel(self, i, b):
         self.stop()
@@ -275,48 +272,50 @@ class DebtCommandView(UserApplicationView):
     def render_confirmation(self):
         embed = Embed(title="Confirmation",
                       description=self.confirmation_text() + " After confirming you cannot change the **amount**")
-        yield Button(label="Confirm", style=ButtonStyle.green, _callable=self.confirm, row=0)
-        yield Button(label="Cancel", style=ButtonStyle.red, _callable=self.cancel, row=0)
+        yield Button(label="Confirm", style=ButtonStyle.green, _callable=self.confirm, row=4)
+        yield Button(label="Cancel", style=ButtonStyle.red, _callable=self.cancel, row=4)
         embed.add_field(name="direction", value=self.direction_text(), inline=False)
         if self.give:
-            yield Button(label="Change to: " + self.toggled_readable_direction_text(), style=ButtonStyle.blurple,
+            yield Button(label="Change to: " + self.toggled_readable_direction_text(),
                          _callable=self.toggle_give,
-                         row=1)
+                         row=0)
         else:
-            yield Button(label="Change to: " + self.toggled_readable_direction_text(), style=ButtonStyle.blurple,
+            yield Button(label="Change to: " + self.toggled_readable_direction_text(),
                          _callable=self.toggle_give,
-                         row=1)
+                         row=0)
         embed.add_field(name="type", value="debt" if self.type == "credit" else "payment", inline=False)
         if self.type == "credit":
-            yield Button(label="mark as 'payment' instead of 'debt'", style=ButtonStyle.blurple,
+            yield Button(label="mark as 'payment' instead of 'debt'",
                          _callable=self.toggle_type,
-                         row=1)
+                         row=0)
         else:
-            yield Button(label="mark as 'debt' instead of 'payment'", style=ButtonStyle.blurple,
+            yield Button(label="mark as 'debt' instead of 'payment'",
                          _callable=self.toggle_type,
-                         row=1)
+                         row=0)
         if self.raw_cent_amount:
             embed.add_field(name="amount", value=f"`{self.raw_cent_amount} = {format_euro(self.cent_amount)}`")
         else:
             embed.add_field(name="amount", value=f"`{format_euro(self.cent_amount)}`")
-        yield Button(label="edit amount", style=ButtonStyle.blurple, _callable=self.change_amount, row=2)
-        yield Button(label="+1€", style=ButtonStyle.blurple, _callable=partial(self.change_amount_by, 100), row=2)
-        yield Button(label="-1€", style=ButtonStyle.blurple, disabled=self.cent_amount <= 100,
-                     _callable=partial(self.change_amount_by, -100), row=2)
-        yield Button(label="+0.20€", style=ButtonStyle.blurple, _callable=partial(self.change_amount_by, 20), row=2)
-        yield Button(label="-0.20€", style=ButtonStyle.blurple, disabled=self.cent_amount <= 20,
-                     _callable=partial(self.change_amount_by, -20), row=2)
+        yield Button(label="edit amount", _callable=self.change_amount, row=1)
+        yield Button(label="+1€", _callable=partial(self.change_amount_by, 100), row=1)
+        yield Button(label="-1€", disabled=self.cent_amount <= 100,
+                     _callable=partial(self.change_amount_by, -100), row=1)
+        yield Button(label="+0.20€", _callable=partial(self.change_amount_by, 20), row=1)
+        yield Button(label="-0.20€", disabled=self.cent_amount <= 20,
+                     _callable=partial(self.change_amount_by, -20), row=1)
         if self.description:
             embed.add_field(name="description", value=self.description, inline=False)
-            yield Button(label="delete description", style=ButtonStyle.red, _callable=self.delete_description, row=3)
-            yield Button(label="edit description", style=ButtonStyle.blurple, _callable=self.change_description, row=3)
+            yield Button(label="delete description", emoji=config.trash_can_emoji_p, _callable=self.delete_description,
+                         row=3)
+            yield Button(label="edit description", _callable=self.change_description, row=2)
         else:
-            yield Button(label="add description", style=ButtonStyle.blurple, _callable=self.change_description, row=3)
+            yield Button(label="add description", _callable=self.change_description, row=2)
         if self.url:
             embed.add_field(name="image:", value="to edit image use: " + mention_slash_command("edit_image"),
                             inline=False)
             embed.set_image(url=self.url)
-            yield Button(label="delete picture", style=ButtonStyle.red, _callable=self.delete_picture, row=4)
+            yield Button(label="delete picture", emoji=config.trash_can_emoji_p, style=ButtonStyle.grey,
+                         _callable=self.delete_picture, row=3)
         else:
             embed.add_field(name="image:", value="to add image use: " + mention_slash_command("add_image"),
                             inline=False)
