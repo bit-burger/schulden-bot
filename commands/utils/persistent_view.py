@@ -2,7 +2,7 @@ from typing import Tuple, Optional, Union, Any, Iterable
 import re
 
 import discord
-from discord import Emoji, PartialEmoji, Interaction
+from discord import Emoji, PartialEmoji, Interaction, TextChannel, Message
 from discord._types import ClientT
 from discord.ui.dynamic import DynamicItem
 
@@ -55,11 +55,12 @@ class ButtonSystem(DynamicItem[discord.ui.Button], template=""):
         super().__init_subclass__(template=f"{name}:(?P<ephemeral>.):(?P<button_name>\\w+):(?P<data>.*)")
 
     def __init__(self, data: Tuple[int | str, ...], *, ephemeral: bool, button_name: str = None,
-                 button: discord.ui.Button = None):
+                 button: discord.ui.Button = None, ac_interaction: discord.Interaction = None) -> None:
         self._button_name = button_name
         self._data = data
         self._last_interaction = None
         self._ephemeral = ephemeral
+        self._ac_interaction = ac_interaction
         super().__init__(button or discord.ui.Button())
 
     @property
@@ -75,26 +76,47 @@ class ButtonSystem(DynamicItem[discord.ui.Button], template=""):
         return self._last_interaction
 
     @property
+    def ac_interaction(self) -> discord.Interaction:
+        return self._ac_interaction
+
+    @property
     def ephemeral(self) -> bool:
         return self._ephemeral
 
     @classmethod
     async def from_custom_id(cls, interaction: discord.Interaction, item: discord.ui.Button, match: re.Match[str], /):
         return cls(decode_into_tuple(match.group("data")), button_name=match.group("button_name"), button=item,
-                   ephemeral=match.group("ephemeral") == "e")
+                   ephemeral=match.group("ephemeral") == "e")  # ac_interaction=interaction
 
     @classmethod
-    async def run_system(cls, interaction: Interaction, data: Tuple[str | int, ...], *, ephemeral: bool = True):
-        button = cls(data=data, ephemeral=ephemeral, button=discord.ui.Button(custom_id=f"{cls.name}:a:"))
+    async def run_system_on_interaction(cls, interaction: Interaction, data: Tuple[str | int, ...], *,
+                                        ephemeral: bool = True, is_initial: bool = True):
+        button = cls(data=data, ephemeral=ephemeral, button=discord.ui.Button(custom_id=f"{cls.name}:n:a:"),
+                     button_name=f"")
+        s, embed, view = button.eval_discord_render(interaction)
+        if is_initial:
+            await interaction.response.send_message(embed=embed, view=view, content=s, ephemeral=ephemeral)
+        else:
+            await interaction.response.edit_message(embed=embed, view=view, content=s)
+
+    @classmethod
+    async def run_system_on_channel(cls, channel: TextChannel, data: Tuple[str | int, ...]):
+        button = cls(data=data, ephemeral=False, button=discord.ui.Button(custom_id=f"{cls.name}:n:a:"), button_name="")
         s, embed, view = button.eval_discord_render()
-        await interaction.response.send_message(embed=embed, view=view, content=s, ephemeral=ephemeral)
+        await channel.send(embed=embed, view=view, content=s)
+
+    @classmethod
+    async def run_system_on_message(cls, message: Message, data: Tuple[str | int, ...]):
+        button = cls(data=data, ephemeral=False, button=discord.ui.Button(custom_id=f"{cls.name}:n:a:"), button_name="")
+        s, embed, view = button.eval_discord_render()
+        await message.edit(embed=embed, view=view, content=s)
 
     async def set_state(self, data: Tuple[int | str]):
         self._data = data
         message_str, embed, view = self.eval_discord_render()
         await self._last_interaction.response.edit_message(embed=embed, view=view, content=message_str)
 
-    def eval_discord_render(self) -> (str | None, discord.Embed | None, discord.ui.View | None):
+    def eval_discord_render(self, ac_interaction=None) -> (str | None, discord.Embed | None, discord.ui.View | None):
         message_str = ""
         embed = None
         view = discord.ui.View(timeout=None)
@@ -110,14 +132,19 @@ class ButtonSystem(DynamicItem[discord.ui.Button], template=""):
                                            emoji=component.emoji, url=component.url, row=component.row)
 
                 dynamic_button = type(self)(self._data, button_name=component.button_name, button=button,
-                                            ephemeral=self.ephemeral)
+                                            ephemeral=self.ephemeral, ac_interaction=ac_interaction)
                 view.add_item(dynamic_button)
         return message_str, embed, view
 
     def render(self) -> Iterable[Button | discord.Embed | str]:
         ...
 
+    async def general_interaction_check(self):
+        return True
+
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        if not await self.general_interaction_check():
+            return False
         self._last_interaction = interaction
         check_method_name = "check_" + self.button_name
         check_method = getattr(self, check_method_name, None)
@@ -126,6 +153,5 @@ class ButtonSystem(DynamicItem[discord.ui.Button], template=""):
         return True
 
     async def callback(self, interaction: Interaction[ClientT]) -> Any:
-        self._last_interaction = interaction
         specific_callback = getattr(self, self._button_name)
         await specific_callback()
