@@ -8,8 +8,14 @@ from discord.ui.dynamic import DynamicItem
 
 
 # only ints and strings allowed
+def encode_value(value: int | str | bool) -> str:
+    if type(value) == bool:
+        return "t" if value else "f"
+    return str(value)
+
+
 def encode_tuple(t: Tuple[int | str, ...]) -> str:
-    return ":".join(map(lambda x: str(x), t))
+    return ":".join(map(encode_value, t))
 
 
 def decode_into_tuple(s: str) -> Tuple[int | str, ...]:
@@ -17,6 +23,10 @@ def decode_into_tuple(s: str) -> Tuple[int | str, ...]:
 
 
 def decode_single_value(val: str) -> int | str:
+    if val == "t":
+        return True
+    if val == "f":
+        return False
     try:
         return int(val)
     except ValueError:
@@ -98,6 +108,14 @@ class ButtonSystem(DynamicItem[discord.ui.Button], template=""):
             await interaction.response.send_message(embed=embed, view=view, content=s, ephemeral=ephemeral)
         else:
             await interaction.response.edit_message(embed=embed, view=view, content=s)
+
+    @classmethod
+    async def run_system_on_interaction_edit(cls, interaction: Interaction, data: Tuple[str | int, ...], *,
+                                             ephemeral: bool = True):
+        button = cls(data=data, ephemeral=ephemeral, button=discord.ui.Button(custom_id=f"{cls.name}:n:a:"),
+                     button_name=f"")
+        s, embed, view = button.eval_discord_render(interaction)
+        await interaction.edit_original_response(embed=embed, view=view, content=s)
 
     @classmethod
     async def run_system_on_channel(cls, channel: TextChannel, data: Tuple[str | int, ...]):
