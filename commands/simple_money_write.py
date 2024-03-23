@@ -200,8 +200,11 @@ class DebtCommandView(UserApplicationView):
                                        type=self.type,
                                        picture=self.url)
         sub_group = MoneyWriteSubGroup.create(group=group)
-        self_participant = MoneyWriteGroupParticipant.create(group=group, participant=self.user, can_delete=give)
-        MoneyWriteGroupParticipant.create(group=group, participant=self.to_user, can_delete=not give)
+        self_participant = MoneyWriteGroupParticipant.create(group=group, participant=self.user,
+                                                             can_delete=self.give,
+                                                             can_request_deletion=True)
+        MoneyWriteGroupParticipant.create(group=group, participant=self.to_user, can_delete=not self.give,
+                                          can_request_deletion=True)
         cent_amount = self.cent_amount
         if self.give:
             cent_amount *= -1

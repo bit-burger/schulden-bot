@@ -1,6 +1,7 @@
 import asyncio
 from typing import Iterable, Iterator
 
+import discord
 from discord import app_commands, ButtonStyle, ui
 
 from .attachment import image_listener
@@ -99,8 +100,9 @@ class DebtView(ButtonSystem, name="dv"):
 
     async def edit(self):
         user_id = self.current_interaction.user.id
+        participant = get_participant(self.unique_id, User.get_by_id(user_id))
         await run_application(self.current_interaction,
-                              DebtEdit(self.group, self.sub_groups, self.participant, self.unique_id, self.name,
+                              DebtEdit(self.group, self.sub_groups, participant, self.unique_id, self.name,
                                        user_id=user_id, hidden=self.hidden, ac_interaction=self.current_interaction),
                               is_initial=not self.hidden)
 
@@ -135,7 +137,7 @@ class DebtView(ButtonSystem, name="dv"):
             b = f"<@{to_user.id}>"
             if give ^ (self.group.type == "money_give"):
                 a, b = b, a
-            embed.description += f"{a}`--{"owes" if self.group.type == "credit" else "payed"}-->`{b}`{format_euro(money_write.cent_amount)}`"
+            embed.description += f"{a}`--{"owes" if self.group.type == "credit" else "payed"}-->`{b}`{format_euro(abs(money_write.cent_amount))}`"
         else:
             # new field where each line is the arrow + description, cannot be very long as a result :(
             ...
@@ -210,7 +212,17 @@ class DebtEdit(ApplicationView):
                                user_id=self.user_id, hidden=self.hidden), ephemeral=True)
 
     async def request_delete(self, i: discord.Interaction, b):
-        ...
+        other_participant = self.group.participants.where(MoneyWriteGroupParticipant.participant != self.user_id).get()
+        user = await config.client.fetch_user(other_participant.participant.id)
+        dm = user.dm_channel
+        if not dm:
+            dm = await user.create_dm()
+
+        request_success = True
+        if request_success:
+            await i.response.send_message(embed=discord.Embed(title="Successfully sent request!", color=0x00FF00))
+        else:
+            await i.response.send_message(embed=discord.Embed(title="could not send request!", color=0xFF0000))
 
     async def save(self, i, b):
         self.group.save()
@@ -262,7 +274,7 @@ class DebtEdit(ApplicationView):
             embed.description = f"### editing debt entry ✏️:\n"
             # embed.description += f"#### {format_euro_sign(money_write.cent_amount)}\n"
             # embed.description += f"{a}`--{"owes" if self.group.type == "credit" else "payed"}-->`{b}"
-            embed.description += f"{a}`--{"owes" if self.group.type == "credit" else "payed"}-->`{b}`{format_euro(money_write.cent_amount)}`"
+            embed.description += f"{a}`--{"owes" if self.group.type == "credit" else "payed"}-->`{b}`{format_euro(abs(money_write.cent_amount))}`"
         else:
             # new field where each line is the arrow + description, cannot be very long as a result :(
             ...
@@ -277,21 +289,21 @@ class DebtEdit(ApplicationView):
                             inline=False)
 
         if self.group.description:
-            yield application_view.Button(label="delete description", style=ButtonStyle.red,
+            yield application_view.Button(label="delete description",
                                           _callable=self.delete_description,
                                           row=1)
-            yield application_view.Button(label="edit description", style=ButtonStyle.blurple,
+            yield application_view.Button(label="edit description",
                                           _callable=self.change_description,
                                           row=1)
         else:
-            yield application_view.Button(label="add description", style=ButtonStyle.green,
+            yield application_view.Button(label="add description",
                                           _callable=self.change_description, row=1)
         if self.group.image_url:
             embed.add_field(name=f"image{" (edited)" if self.group.image_url_edited else ""}:",
                             value="to edit image use: " + mention_slash_command("edit_image"),
                             inline=False)
             embed.set_image(url=self.group.image_url)
-            yield application_view.Button(label="delete picture", style=ButtonStyle.red, _callable=self.delete_picture,
+            yield application_view.Button(label="delete picture", _callable=self.delete_picture,
                                           row=1)
         else:
             embed.add_field(name="image:", value="to add image use: " + mention_slash_command("add_image"),
