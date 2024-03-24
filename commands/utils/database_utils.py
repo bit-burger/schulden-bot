@@ -3,7 +3,6 @@ from typing import Literal
 import discord
 
 from commands.utils.formatting import mention_slash_command, format_euro
-from database.database_schema import User
 from database.settings import *
 
 
@@ -35,12 +34,12 @@ def max_interaction_amount(*users: User) -> int:
     return max_amount
 
 
-def max_interaction_error(you: User, other: User, amount: int) -> str | None:
+def max_interaction_error(you: User, other: User, amount: int, human_readable_format: bool = False) -> str | None:
     max_amount_you = max_interaction_amount(you)
     if max_amount_you < amount:
         return (f"Your {setting_names[Setting.max_amount]} is at `{format_euro(max_amount_you)}`, "
                 f"but the amount is `{format_euro(amount)}`."
-                f"Please change it in {mention_slash_command("settings")}"
+                f"Please change it in {"/settings" if human_readable_format else mention_slash_command("settings")}"
                 f"if you want to allow a higher amount of money"
                 )
     max_amount_other = max_interaction_amount(other)

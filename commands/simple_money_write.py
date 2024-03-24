@@ -27,7 +27,8 @@ from .view_entry import DebtView
 # idea: put direction and type into same field, and just two buttons
 # [Change to: @b--owe-->@a]   [Change to: @a--payed-->@b]
 
-async def simple_money_write(i: discord.Interaction, amount: str, who: discord.Member, description: Optional[str],
+async def simple_money_write(i: discord.Interaction, amount: Optional[str], who: discord.Member,
+                             description: Optional[str],
                              image: Optional[discord.Attachment], yourself_err, bot_err, non_wl_err, non_self_wl_err,
                              give, type):
     if image and not attachment_is_image(image):
@@ -36,20 +37,21 @@ async def simple_money_write(i: discord.Interaction, amount: str, who: discord.M
         return await send_error_embed(i, title="Description too long",
                                       description=f"should contain max 1000 characters, "
                                                   f"but contains {len(description)} characters")
-    cent_amount = str_to_euro_cent(amount)
+    cent_amount = str_to_euro_cent(amount) if amount else None
     if who.id == i.user.id:
         return await send_error_embed(i, title=yourself_err)
     if who.bot:
         return await send_error_embed(i, title=bot_err)
-    if not cent_amount:
-        return await send_error_embed(i, title="Not a valid amount",
-                                      description=f"'**{amount}**' is not a positive sum of euro and euro cent")
+    # if not cent_amount:
+    #     return await send_error_embed(i, title="Not a valid amount",
+    #                                   description=f"'**{amount}**' is not a positive sum of euro and euro cent")
     user = check_register(i)
     to_user = check_register_from_id(who.id)
-    max_interaction_error_str = max_interaction_error(user, to_user, cent_amount)
-    if max_interaction_error_str:
-        return await send_error_embed(i, title="Amount to high",
-                                      description=max_interaction_error_str)
+    if cent_amount:
+        max_interaction_error_str = max_interaction_error(user, to_user, cent_amount)
+        if max_interaction_error_str:
+            return await send_error_embed(i, title="Amount to high",
+                                          description=max_interaction_error_str)
     if not can_send(user, to_user):
         return await send_success_embed(i, title=non_wl_err,
                                         description="user may have not whitelisted you")
@@ -86,10 +88,19 @@ wl_them_str = "as you have not whitelisted them"
     description="why you owe this money",
     image="an attachment for the debt (could be a photo of a receipt)",
 )
-async def owe(i: discord.Interaction, amount: str, who: discord.Member, description: Optional[str],
+async def owe(i: discord.Interaction, amount: Optional[str], who: discord.Member, description: Optional[str],
               image: Optional[discord.Attachment]):
     await simple_money_write(
         i, amount, who, description, image, "You can't owe yourself!", "You can't owe a bot!",
+        "Cannot register owing this user money, " + wl_you_str,
+        "Cannot register owing this user money, " + wl_them_str, False, "credit"
+    )
+
+
+@tree.context_menu(name="owe (you owe them money)", guild=discord.Object(id=1201588191094906890))
+async def owe_context(i: discord.Interaction, who: discord.Member):
+    await simple_money_write(
+        i, None, who, None, None, "You can't owe yourself!", "You can't owe a bot!",
         "Cannot register owing this user money, " + wl_you_str,
         "Cannot register owing this user money, " + wl_them_str, False, "credit"
     )
@@ -103,10 +114,20 @@ async def owe(i: discord.Interaction, amount: str, who: discord.Member, descript
     description="why you gave this money",
     image="an attachment showing you gave this money (could be a photo of a receipt)",
 )
-async def give(i: discord.Interaction, amount: str, who: discord.Member, description: Optional[str],
+async def give(i: discord.Interaction, amount: Optional[str], who: discord.Member, description: Optional[str],
                image: Optional[discord.Attachment]):
     await simple_money_write(
         i, amount, who, description, image, "You can't register giving yourself money!",
+        "You can't register giving a bot money!",
+        "Cannot register giving this user money, " + wl_you_str,
+        "Cannot register giving this user money, " + wl_them_str, True, "money_give"
+    )
+
+
+@tree.context_menu(name="give (you gave them money)", guild=discord.Object(id=1201588191094906890))
+async def give_context(i: discord.Interaction, who: discord.Member):
+    await simple_money_write(
+        i, None, who, None, None, "You can't register giving yourself money!",
         "You can't register giving a bot money!",
         "Cannot register giving this user money, " + wl_you_str,
         "Cannot register giving this user money, " + wl_them_str, True, "money_give"
@@ -121,10 +142,19 @@ async def give(i: discord.Interaction, amount: str, who: discord.Member, descrip
     description="why they you owe this money",
     image="an attachment for the debt (could be a photo of a receipt)",
 )
-async def debt(i: discord.Interaction, amount: str, who: discord.Member, description: Optional[str],
+async def debt(i: discord.Interaction, amount: Optional[str], who: discord.Member, description: Optional[str],
                image: Optional[discord.Attachment]):
     await simple_money_write(
         i, amount, who, description, image, "You can't owe yourself!", "You can't owe a bot!",
+        "Cannot register debt from this user, " + wl_you_str,
+        "Cannot register debt from this user, " + wl_them_str, True, "credit"
+    )
+
+
+@tree.context_menu(name="debt (they owe you money)", guild=discord.Object(id=1201588191094906890))
+async def debt_context(i: discord.Interaction, who: discord.Member):
+    await simple_money_write(
+        i, None, who, None, None, "You can't owe yourself!", "You can't owe a bot!",
         "Cannot register debt from this user, " + wl_you_str,
         "Cannot register debt from this user, " + wl_them_str, True, "credit"
     )
@@ -138,7 +168,7 @@ async def debt(i: discord.Interaction, amount: str, who: discord.Member, descrip
     description="why they gave you this money",
     image="an attachment showing they gave you the money (could be a photo of a receipt)",
 )
-async def accept(i: discord.Interaction, amount: str, who: discord.Member, description: Optional[str],
+async def accept(i: discord.Interaction, amount: Optional[str], who: discord.Member, description: Optional[str],
                  image: Optional[discord.Attachment]):
     await simple_money_write(
         i, amount, who, description, image, "You can't owe yourself!", "You can't owe a bot!",
@@ -147,10 +177,19 @@ async def accept(i: discord.Interaction, amount: str, who: discord.Member, descr
     )
 
 
+@tree.context_menu(name="accept (they gave you money)", guild=discord.Object(id=1201588191094906890))
+async def accept_context(i: discord.Interaction, who: discord.Member):
+    await simple_money_write(
+        i, None, who, None, None, "You can't owe yourself!", "You can't owe a bot!",
+        "Cannot register accepting money from this user, " + wl_you_str,
+        "Cannot register accepting money from this user, " + wl_them_str, False, "money_give"
+    )
+
+
 class DebtCommandView(UserApplicationView):
 
     def __init__(self, user: User, member: Member, to_user: User, to_member: Member,
-                 description: str | None, raw_cent_amount: str, cent_amount: int,
+                 description: str | None, raw_cent_amount: Optional[str], cent_amount: Optional[int],
                  url: str | None, give: bool,
                  type: Literal["money_give", "credit"]):
         super().__init__(user=user)
@@ -165,6 +204,11 @@ class DebtCommandView(UserApplicationView):
         self.give = give
         self.type = type
         self.error = None
+        if not cent_amount:
+            if raw_cent_amount:
+                self.error = f'"{raw_cent_amount}" is not a valid amount of money'
+            else:
+                self.error = "no valid amount of money given"
         self.timestamp = None
         self.unique_identifier = ''.join(random.choices(string.ascii_uppercase + string.digits, k=5))
         image_listener.add_listener(self.user.id, self)
@@ -236,14 +280,14 @@ class DebtCommandView(UserApplicationView):
     async def change_amount_confirm(self, i, raw_amount):
         amount = str_to_euro_cent(raw_amount)
         if amount is None:
-            self.error = f"amount could not be changed as '{raw_amount}' is not a valid euro cent amount"
+            self.error = f'"amount" could not be changed as "{raw_amount}" is not a valid amount of money'
             await self.set_state(i)
             return
         if amount == 0:
             self.error = "amount could not be changed as amount has to be positive"
             await self.set_state(i)
             return
-        max_interaction_error_str = max_interaction_error(self.user, self.to_user, amount)
+        max_interaction_error_str = max_interaction_error(self.user, self.to_user, amount, human_readable_format=True)
         if max_interaction_error_str:
             self.error = max_interaction_error_str
             await self.set_state(i)
@@ -274,8 +318,9 @@ class DebtCommandView(UserApplicationView):
 
     def render_confirmation(self):
         embed = Embed(title="Confirmation",
-                      description=self.confirmation_text() + " After confirming you cannot change the **amount**")
-        yield Button(label="Confirm", style=ButtonStyle.green, _callable=self.confirm, row=4)
+                      description="Please fill out the field `amount` before proceeding" if not self.cent_amount else self.confirmation_text() + " After confirming you cannot change the **amount**")
+        yield Button(label="Confirm", style=ButtonStyle.green, _callable=self.confirm, disabled=not self.cent_amount,
+                     row=4)
         yield Button(label="Cancel", style=ButtonStyle.red, _callable=self.cancel, row=4)
         embed.add_field(name="direction", value=self.direction_text(), inline=False)
         if self.give:
@@ -295,16 +340,18 @@ class DebtCommandView(UserApplicationView):
             yield Button(label="mark as 'debt' instead of 'payment'",
                          _callable=self.toggle_type,
                          row=0)
-        if self.raw_cent_amount:
+        if not self.cent_amount:
+            embed.add_field(name="amount", value=f"`no valid amount given yet`")
+        elif self.raw_cent_amount:
             embed.add_field(name="amount", value=f"`{self.raw_cent_amount} = {format_euro(self.cent_amount)}`")
         else:
             embed.add_field(name="amount", value=f"`{format_euro(self.cent_amount)}`")
-        yield Button(label="edit amount", _callable=self.change_amount, row=1)
-        yield Button(label="+1€", _callable=partial(self.change_amount_by, 100), row=1)
-        yield Button(label="-1€", disabled=self.cent_amount <= 100,
+        yield Button(label="set amount" if not self.cent_amount else "edit amount", _callable=self.change_amount, row=1)
+        yield Button(label="+1€", _callable=partial(self.change_amount_by, 100), disabled=not self.cent_amount, row=1)
+        yield Button(label="-1€", disabled=not self.cent_amount or self.cent_amount <= 100,
                      _callable=partial(self.change_amount_by, -100), row=1)
-        yield Button(label="+0.20€", _callable=partial(self.change_amount_by, 20), row=1)
-        yield Button(label="-0.20€", disabled=self.cent_amount <= 20,
+        yield Button(label="+0.20€", _callable=partial(self.change_amount_by, 20), disabled=not self.cent_amount, row=1)
+        yield Button(label="-0.20€", disabled=not self.cent_amount or self.cent_amount <= 20,
                      _callable=partial(self.change_amount_by, -20), row=1)
         if self.description:
             embed.add_field(name="description", value=self.description, inline=False)
