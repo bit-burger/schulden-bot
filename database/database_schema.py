@@ -151,6 +151,7 @@ class ViewDebtEntryMessages(BaseModel):
     user_id = IntegerField()
     channel_id = IntegerField()
     message_id = IntegerField()
+    is_deletion_request = BooleanField(default=False)
     created_at = DateTimeField(default=datetime.datetime.now)
 
 

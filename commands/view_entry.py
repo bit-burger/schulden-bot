@@ -17,6 +17,7 @@ from .utils.persistent_view import ButtonSystem, Button
 
 _interaction_message_cache = dict()
 
+
 # TODO: _ephermeral_interaction_cache = dict()
 
 
@@ -28,7 +29,8 @@ async def edit_view_debt_interactions(unique_id, user_id):
             else:
                 channel = await client.fetch_channel(entry.channel_id)
                 message = await channel.fetch_message(entry.message_id)
-            await DebtView.run_system_on_message(message, (entry.debt_entry, entry.user_id, False))
+            await DebtView.run_system_on_message(message, (
+                entry.debt_entry, entry.user_id, entry.is_deletion_request, entry.is_deletion_request))
         except:
             ...
 
@@ -93,6 +95,16 @@ class DebtView(ButtonSystem, name="dv"):
     def hidden(self):
         return self.data[2]
 
+    @property
+    def is_deletion_request(self):
+        if self.deleted or len(self.data) < 4:
+            return False
+        return self.data[3]
+
+    @property
+    def deleted(self):
+        return all(map(lambda s_g: s_g.deleted_at is not None, self.sub_groups))
+
     async def check_edit(self):
         user_id = self.current_interaction.user.id
         participant = get_participant(self.unique_id, User.get_by_id(user_id))
@@ -116,17 +128,32 @@ class DebtView(ButtonSystem, name="dv"):
         # yield button that allows to view main group
         ...
 
+    async def ignore(self):
+        await self.current_interaction.response.defer()
+        await self.current_interaction.delete_original_response()
+
+    async def delete(self):
+        if is_group_id(self.unique_id):
+            for subgroup in self.sub_groups:
+                subgroup.deleted_at = datetime.datetime.now()
+            MoneyWriteSubGroup.bulk_update(self.sub_groups, fields=["deleted_at"])
+        else:
+            raise "not implemented"
+        await self.set_state(data=self.data)
+
     def render_group(self):
-        deleted = all(map(lambda s_g: s_g.deleted_at is not None, self.sub_groups))
         # edited = any(map(lambda s_g: s_g.edited is True, self.sub_groups)) or self.group.description_edited
-        embed = discord.Embed(color=0xFF0000 if deleted else None)
+        embed = discord.Embed(color=0xFF0000 if self.deleted or self.is_deletion_request else None)
 
-        embed.description = "### " + self.name
+        if self.is_deletion_request:
+            embed.description = "### Do you want to delete this " + self.name + "?\n"
+        else:
+            embed.description = "### " + self.name
 
-        if deleted:
-            embed.description += f" {trash_can_emoji} (deleted)"
-        #     embed.description += f" ✏️ (edited)"
-        embed.description += "\n"
+            if self.deleted:
+                embed.description += f" {trash_can_emoji} (deleted)"
+            #     embed.description += f" ✏️ (edited)"
+            embed.description += "\n"
 
         if self.group.type == "money_give" or self.group.type == "credit":
             sub_group = self.sub_groups[0]
@@ -155,8 +182,12 @@ class DebtView(ButtonSystem, name="dv"):
                             inline=False)
             embed.set_image(url=self.group.image_url)
         yield embed
-        if not deleted:
-            yield Button(label="edit" if deleted else "edit/delete", button_name="edit", style=ButtonStyle.blurple)
+        if self.is_deletion_request:
+            yield Button(label="delete", button_name="delete", style=ButtonStyle.red)
+            yield Button(label="ignore", button_name="ignore", style=ButtonStyle.grey)
+        if not self.deleted:
+            yield Button(label="edit" if self.is_deletion_request else "edit/delete", button_name="edit",
+                         style=ButtonStyle.blurple)
         # yield button that gives message with selection menu to view under group
 
 
@@ -217,20 +248,32 @@ class DebtEdit(ApplicationView):
         dm = user.dm_channel
         if not dm:
             dm = await user.create_dm()
-
-        request_success = True
+        try:
+            message = await DebtView.run_system_on_channel(dm, (self.uid, i.user.id, True, True))
+            ViewDebtEntryMessages.create(message_id=message.id, channel_id=message.channel.id, debt_entry=self.uid,
+                                         user_id=user.id, is_deletion_request=True)
+            request_success = True
+        except:
+            request_success = False
         if request_success:
-            await i.response.send_message(embed=discord.Embed(title="Successfully sent request!", color=0x00FF00))
+            await i.response.edit_message(embed=discord.Embed(title="Successfully sent deletion request!",
+                                                              description=f"The bot successfully sent a dm message to <@{user.id}> for the deletion of the debt entry with id `{self.uid}`",
+                                                              color=0x00FF00), view=None)
         else:
-            await i.response.send_message(embed=discord.Embed(title="could not send request!", color=0xFF0000))
+            await i.response.send_message(embed=discord.Embed(title="Could not send deletion request!",
+                                                              description=f"The bot failed sending a dm message to <@{user.id}>, perhaps this user has not allowed the ",
+                                                              color=0xFF0000), ephemeral=True)
 
     async def save(self, i, b):
+        self.edited = False
         self.group.save()
         if self.hidden:
-            await DebtView.run_system_on_interaction(i, (self.uid, self.user_id, self.hidden), is_initial=False)
             await i.response.send_message(
-                embed=discord.Embed(title="Saved successfully", description="your changes have been saved successfully",
+                embed=discord.Embed(title="Saved successfully",
+                                    description="your changes have been saved successfully",
                                     color=0x00FF00))
+            await DebtView.run_system_on_interaction_edit(i, (self.uid, self.user_id, self.hidden)),
+            await edit_view_debt_interactions(self.uid, self.user_id)
         else:
             self.saved = True
             await self.set_state(i)

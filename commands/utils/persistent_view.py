@@ -118,10 +118,10 @@ class ButtonSystem(DynamicItem[discord.ui.Button], template=""):
         await interaction.edit_original_response(embed=embed, view=view, content=s)
 
     @classmethod
-    async def run_system_on_channel(cls, channel: TextChannel, data: Tuple[str | int, ...]):
+    async def run_system_on_channel(cls, channel: TextChannel, data: Tuple[str | int, ...]) -> Message:
         button = cls(data=data, ephemeral=False, button=discord.ui.Button(custom_id=f"{cls.name}:n:a:"), button_name="")
         s, embed, view = button.eval_discord_render()
-        await channel.send(embed=embed, view=view, content=s)
+        return await channel.send(embed=embed, view=view, content=s)
 
     @classmethod
     async def run_system_on_message(cls, message: Message, data: Tuple[str | int, ...]):
