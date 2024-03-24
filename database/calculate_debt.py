@@ -15,20 +15,29 @@ def _user_balance_cte(user: User):
     to_user_alias = User.alias("to_user")
     from_user_alias = User.alias("from_user")
 
-    user_id_column = to_user_alias.id.alias("user_id")
-    cent_amount_column = fn.sum(MoneyWrite.cent_amount).alias("total_cent_amount")
+    user_id_column = to_user_alias.id
+    cent_amount_column = fn.sum(MoneyWrite.cent_amount)
 
     whitelist_query = user.whitelisted.select(WhitelistUser.whitelisted)
 
-    whitelist_on = get_setting(user, Setting.whitelist_on)
+    whitelist_on = get_setting(user, Setting.whitelisting_on)
 
+    if not whitelist_on:
+        return (user.money_writes
+                .select(user_id_column.alias("user_id"), cent_amount_column.alias("total_cent_amount"))
+                .join(to_user_alias, on=MoneyWrite.to_user == to_user_alias.id)
+                .switch(MoneyWrite)
+                .join(MoneyWriteSubGroup)
+                .where(MoneyWriteSubGroup.deleted_at.is_null())
+                .group_by(user_id_column)).cte('money_write_nets', columns=('user_id', 'cent_amount'))
     return (user.money_writes
-            .select(user_id_column, cent_amount_column)
+            .select(user_id_column.alias("user_id"), cent_amount_column.alias("total_cent_amount"))
             .join(to_user_alias, on=MoneyWrite.to_user == to_user_alias.id)
             .switch(MoneyWrite)
             .join(MoneyWriteSubGroup)
-            .where(MoneyWriteSubGroup.deleted_at.is_null() &
-                   (not whitelist_on | user_id_column.in_(whitelist_query)))
+            .switch(MoneyWrite)
+            .join(WhitelistUser, on=(WhitelistUser.by == user.id) & (WhitelistUser.whitelisted == user_id_column))
+            .where(MoneyWriteSubGroup.deleted_at.is_null())
             .group_by(user_id_column)).cte('money_write_nets', columns=('user_id', 'cent_amount'))
 
 
