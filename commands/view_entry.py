@@ -268,12 +268,13 @@ class DebtEdit(ApplicationView):
         self.edited = False
         self.group.save()
         if self.hidden:
-            await i.response.send_message(
-                embed=discord.Embed(title="Saved successfully",
-                                    description="your changes have been saved successfully",
-                                    color=0x00FF00))
-            await DebtView.run_system_on_interaction_edit(i, (self.uid, self.user_id, self.hidden)),
-            await edit_view_debt_interactions(self.uid, self.user_id)
+            await asyncio.gather(
+                i.response.send_message(
+                    embed=discord.Embed(title="Saved successfully",
+                                        description="your changes have been saved successfully",
+                                        color=0x00FF00), ephemeral=True),
+                DebtView.run_system_on_interaction_edit(self.ac_interaction, (self.uid, self.user_id, self.hidden)),
+                edit_view_debt_interactions(self.uid, self.user_id))
         else:
             self.saved = True
             await self.set_state(i)
@@ -351,7 +352,8 @@ class DebtEdit(ApplicationView):
         else:
             embed.add_field(name="image:", value="to add image use: " + mention_slash_command("add_image"),
                             inline=False)
-        yield application_view.Button(label="Save changes", _callable=self.save, disabled=not self.edited, row=3)
+        yield application_view.Button(label="Save changes", _callable=self.save, disabled=not self.edited,
+                                      style=ButtonStyle.green, row=3)
         yield application_view.Button(label="Cancel", _callable=self.cancel, style=ButtonStyle.red, row=3)
         if self.participant.can_delete:
             yield application_view.Button(label=f"delete this {self.name}", row=4, style=ButtonStyle.red,
