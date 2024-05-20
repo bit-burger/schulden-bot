@@ -4,7 +4,7 @@ import string
 from functools import partial
 from typing import Literal
 
-from discord import Embed, app_commands, Member, ButtonStyle
+from discord import Embed, app_commands, Member, ButtonStyle, Interaction
 
 from .utils.application_view import *
 from .utils.database_utils import *
@@ -188,11 +188,14 @@ async def accept_context(i: discord.Interaction, who: discord.Member):
 
 class DebtCommandView(UserApplicationView):
 
+    async def interaction_check(self, interaction: Interaction, /) -> bool:
+        return interaction.user.id == self.user.id
+
     def __init__(self, user: User, member: Member, to_user: User, to_member: Member,
                  description: str | None, raw_cent_amount: Optional[str], cent_amount: Optional[int],
                  url: str | None, give: bool,
                  type: Literal["money_give", "credit"]):
-        super().__init__(user=user)
+        super().__init__(user=user, ephemeral=ephemeral_from_arg(user, None))
         self.state = "confirmation"
         self.member = member
         self.to_user = to_user
