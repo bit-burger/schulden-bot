@@ -56,11 +56,10 @@ async def view(interaction: discord.Interaction, unique_id: str, show: Optional[
     #     DebtView.run_system_on_channel(interaction.channel, (unique_id, user.id)),
     # )
     await DebtView.run_system_on_interaction(interaction, (unique_id, user.id, ephemeral), ephemeral=ephemeral),
-    if not ephemeral:
-        message = await interaction.original_response()
-        _interaction_message_cache[message.id] = message
-        ViewDebtEntryMessages.create(message_id=message.id, channel_id=message.channel.id, debt_entry=unique_id,
-                                     user_id=user.id)
+    message = await interaction.original_response()
+    _interaction_message_cache[message.id] = message
+    ViewDebtEntryMessages.create(message_id=message.id, channel_id=message.channel.id, debt_entry=unique_id,
+                                 user_id=user.id)
 
 
 class DebtView(ButtonSystem, name="dv"):

@@ -14,7 +14,7 @@ from config import tree, help_icon_url
 from database.database_schema import *
 from database.permissions import can_send
 from .attachment import image_listener
-from .view_entry import DebtView
+from .view_entry import DebtView, _interaction_message_cache
 
 
 # all commands:
@@ -80,7 +80,8 @@ wl_you_str = "as they have not whitelisted you"
 wl_them_str = "as you have not whitelisted them"
 
 
-@tree.command(name='owe', description="register when you owe someone", guild=discord.Object(config.test_guild_id) if config.test_guild_id else None)
+@tree.command(name='owe', description="register when you owe someone",
+              guild=discord.Object(config.test_guild_id) if config.test_guild_id else None)
 @app_commands.describe(
     amount="the amount of money that you owe",
     who="Who you owe the money",
@@ -96,7 +97,8 @@ async def owe(i: discord.Interaction, amount: Optional[str], who: discord.Member
     )
 
 
-@tree.context_menu(name="owe (you owe them money)", guild=discord.Object(config.test_guild_id) if config.test_guild_id else None)
+@tree.context_menu(name="owe (you owe them money)",
+                   guild=discord.Object(config.test_guild_id) if config.test_guild_id else None)
 async def owe_context(i: discord.Interaction, who: discord.Member):
     await simple_money_write(
         i, None, who, None, None, "You can't owe yourself!", "You can't owe a bot!",
@@ -105,7 +107,8 @@ async def owe_context(i: discord.Interaction, who: discord.Member):
     )
 
 
-@tree.command(name='pay', description="register when you pay/give someone money", guild=discord.Object(config.test_guild_id) if config.test_guild_id else None)
+@tree.command(name='pay', description="register when you pay/give someone money",
+              guild=discord.Object(config.test_guild_id) if config.test_guild_id else None)
 @app_commands.describe(
     amount="the amount of money that you have given",
     who="Who you gave the money",
@@ -113,7 +116,7 @@ async def owe_context(i: discord.Interaction, who: discord.Member):
     image="an attachment showing you gave this money (could be a photo of a receipt)",
 )
 async def pay(i: discord.Interaction, amount: Optional[str], who: discord.Member, description: Optional[str],
-               image: Optional[discord.Attachment]):
+              image: Optional[discord.Attachment]):
     await simple_money_write(
         i, amount, who, description, image, "You can't register giving yourself money!",
         "You can't register giving a bot money!",
@@ -122,7 +125,8 @@ async def pay(i: discord.Interaction, amount: Optional[str], who: discord.Member
     )
 
 
-@tree.context_menu(name="pay (you gave them money)", guild=discord.Object(config.test_guild_id) if config.test_guild_id else None)
+@tree.context_menu(name="pay (you gave them money)",
+                   guild=discord.Object(config.test_guild_id) if config.test_guild_id else None)
 async def pay_context(i: discord.Interaction, who: discord.Member):
     await simple_money_write(
         i, None, who, None, None, "You can't register giving yourself money!",
@@ -132,7 +136,8 @@ async def pay_context(i: discord.Interaction, who: discord.Member):
     )
 
 
-@tree.command(name='debt', description="register when someone owes you money", guild=discord.Object(config.test_guild_id) if config.test_guild_id else None)
+@tree.command(name='debt', description="register when someone owes you money",
+              guild=discord.Object(config.test_guild_id) if config.test_guild_id else None)
 @app_commands.describe(
     amount="the amount of money that this user owes you",
     who="Why they owe you this money",
@@ -148,7 +153,8 @@ async def debt(i: discord.Interaction, amount: Optional[str], who: discord.Membe
     )
 
 
-@tree.context_menu(name="debt (they owe you money)", guild=discord.Object(config.test_guild_id) if config.test_guild_id else None)
+@tree.context_menu(name="debt (they owe you money)",
+                   guild=discord.Object(config.test_guild_id) if config.test_guild_id else None)
 async def debt_context(i: discord.Interaction, who: discord.Member):
     await simple_money_write(
         i, None, who, None, None, "You can't owe yourself!", "You can't owe a bot!",
@@ -157,7 +163,8 @@ async def debt_context(i: discord.Interaction, who: discord.Member):
     )
 
 
-@tree.command(name='payed-off', description="register when you accept money from someone", guild=discord.Object(config.test_guild_id) if config.test_guild_id else None)
+@tree.command(name='payed-off', description="register when you accept money from someone",
+              guild=discord.Object(config.test_guild_id) if config.test_guild_id else None)
 @app_commands.describe(
     amount="the amount of money that you have accepted",
     who="Who gave you the money",
@@ -165,7 +172,7 @@ async def debt_context(i: discord.Interaction, who: discord.Member):
     image="an attachment showing they gave you the money (could be a photo of a receipt)",
 )
 async def payed_off(i: discord.Interaction, amount: Optional[str], who: discord.Member, description: Optional[str],
-                 image: Optional[discord.Attachment]):
+                    image: Optional[discord.Attachment]):
     await simple_money_write(
         i, amount, who, description, image, "You can't owe yourself!", "You can't owe a bot!",
         "Cannot register accepting money from this user, " + wl_you_str,
@@ -173,7 +180,8 @@ async def payed_off(i: discord.Interaction, amount: Optional[str], who: discord.
     )
 
 
-@tree.context_menu(name="payed-off (they gave you money)", guild=discord.Object(config.test_guild_id) if config.test_guild_id else None)
+@tree.context_menu(name="payed-off (they gave you money)",
+                   guild=discord.Object(config.test_guild_id) if config.test_guild_id else None)
 async def payed_off(i: discord.Interaction, who: discord.Member):
     await simple_money_write(
         i, None, who, None, None, "You can't owe yourself!", "You can't owe a bot!",
@@ -259,6 +267,13 @@ class DebtCommandView(UserApplicationView):
 
         self.clean_up()
         await DebtView.run_system_on_interaction(i, (self.unique_identifier, self.user.id, True), is_initial=False)
+
+        message = await self.last_interaction.original_response()
+        _interaction_message_cache[message.id] = message
+        ViewDebtEntryMessages.create(message_id=message.id,
+                                     channel_id=message.channel.id,
+                                     debt_entry=self.unique_identifier,
+                                     user_id=self.user.id)
 
     async def cancel(self, i, b):
         self.stop()
