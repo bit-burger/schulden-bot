@@ -5,11 +5,14 @@ from .utils.formatting import *
 from .utils.database_utils import *
 from .utils.discord_utils import *
 from config import tree
-from discord import ui, ButtonStyle
+from discord import ui, ButtonStyle, app_commands
+
+whitelist_group = app_commands.Group(description="asd", name="whitelist",
+                                     guild_ids=[config.test_guild_id] if config.test_guild_id else None)
+tree.add_command(whitelist_group)
 
 
-@tree.command(name="whitelist_view", description="view all whitelisted users",
-              guild=discord.Object(id=1201588191094906890))
+@whitelist_group.command(name="view", description="view all whitelisted users")
 async def whitelist_view(interaction: discord.Interaction):
     user = check_register(interaction)
     if not get_setting(user, Setting.whitelisting_on):
@@ -22,8 +25,7 @@ async def whitelist_view(interaction: discord.Interaction):
         ephemeral=True)
 
 
-@tree.command(name="whitelist_reset", description="clear whitelist (will not delete any debt information)",
-              guild=discord.Object(id=1201588191094906890))
+@whitelist_group.command(name="reset", description="clear whitelist (will not delete any debt information)")
 async def whitelist_reset(interaction: discord.Interaction):
     user = check_register(interaction)
     await interaction.response.send_message(view=WhitelistUserReset(user),
@@ -32,8 +34,7 @@ async def whitelist_reset(interaction: discord.Interaction):
                                                                 color=0xFF0000))
 
 
-@tree.command(name="whitelist_remove", description="remove people from whitelist",
-              guild=discord.Object(id=1201588191094906890))
+@whitelist_group.command(name="remove", description="remove people from whitelist")
 async def whitelist_remove(interaction: discord.Interaction):
     user = check_register(interaction)
     await run_application(interaction, WhitelistRemoveApp(user))
@@ -122,8 +123,7 @@ class WhitelistUserReset(ui.View):
         self.stop()
 
 
-@tree.command(name='whitelist_add', description="whitelist users to track debt", guild=discord.Object(
-    id=1201588191094906890))
+@whitelist_group.command(name='add', description="whitelist users to track debt")
 async def whitelist(interaction: discord.Interaction):
     user = check_register(interaction)
     if not get_setting(user, Setting.whitelisting_on):

@@ -80,8 +80,7 @@ wl_you_str = "as they have not whitelisted you"
 wl_them_str = "as you have not whitelisted them"
 
 
-@tree.command(name='owe', description="register when you owe someone",
-              guild=discord.Object(id=1201588191094906890))
+@tree.command(name='owe', description="register when you owe someone", guild=discord.Object(config.test_guild_id) if config.test_guild_id else None)
 @app_commands.describe(
     amount="the amount of money that you owe",
     who="Who you owe the money",
@@ -97,7 +96,7 @@ async def owe(i: discord.Interaction, amount: Optional[str], who: discord.Member
     )
 
 
-@tree.context_menu(name="owe (you owe them money)", guild=discord.Object(id=1201588191094906890))
+@tree.context_menu(name="owe (you owe them money)", guild=discord.Object(config.test_guild_id) if config.test_guild_id else None)
 async def owe_context(i: discord.Interaction, who: discord.Member):
     await simple_money_write(
         i, None, who, None, None, "You can't owe yourself!", "You can't owe a bot!",
@@ -106,15 +105,14 @@ async def owe_context(i: discord.Interaction, who: discord.Member):
     )
 
 
-@tree.command(name='give', description="register when you give someone money",
-              guild=discord.Object(id=1201588191094906890))
+@tree.command(name='pay', description="register when you pay/give someone money", guild=discord.Object(config.test_guild_id) if config.test_guild_id else None)
 @app_commands.describe(
     amount="the amount of money that you have given",
     who="Who you gave the money",
     description="why you gave this money",
     image="an attachment showing you gave this money (could be a photo of a receipt)",
 )
-async def give(i: discord.Interaction, amount: Optional[str], who: discord.Member, description: Optional[str],
+async def pay(i: discord.Interaction, amount: Optional[str], who: discord.Member, description: Optional[str],
                image: Optional[discord.Attachment]):
     await simple_money_write(
         i, amount, who, description, image, "You can't register giving yourself money!",
@@ -124,8 +122,8 @@ async def give(i: discord.Interaction, amount: Optional[str], who: discord.Membe
     )
 
 
-@tree.context_menu(name="give (you gave them money)", guild=discord.Object(id=1201588191094906890))
-async def give_context(i: discord.Interaction, who: discord.Member):
+@tree.context_menu(name="pay (you gave them money)", guild=discord.Object(config.test_guild_id) if config.test_guild_id else None)
+async def pay_context(i: discord.Interaction, who: discord.Member):
     await simple_money_write(
         i, None, who, None, None, "You can't register giving yourself money!",
         "You can't register giving a bot money!",
@@ -134,8 +132,7 @@ async def give_context(i: discord.Interaction, who: discord.Member):
     )
 
 
-@tree.command(name='debt', description="register when someone owes you money",
-              guild=discord.Object(id=1201588191094906890))
+@tree.command(name='debt', description="register when someone owes you money", guild=discord.Object(config.test_guild_id) if config.test_guild_id else None)
 @app_commands.describe(
     amount="the amount of money that this user owes you",
     who="Why they owe you this money",
@@ -151,7 +148,7 @@ async def debt(i: discord.Interaction, amount: Optional[str], who: discord.Membe
     )
 
 
-@tree.context_menu(name="debt (they owe you money)", guild=discord.Object(id=1201588191094906890))
+@tree.context_menu(name="debt (they owe you money)", guild=discord.Object(config.test_guild_id) if config.test_guild_id else None)
 async def debt_context(i: discord.Interaction, who: discord.Member):
     await simple_money_write(
         i, None, who, None, None, "You can't owe yourself!", "You can't owe a bot!",
@@ -160,15 +157,14 @@ async def debt_context(i: discord.Interaction, who: discord.Member):
     )
 
 
-@tree.command(name='accept', description="register when you accept money from someone",
-              guild=discord.Object(id=1201588191094906890))
+@tree.command(name='payed-off', description="register when you accept money from someone", guild=discord.Object(config.test_guild_id) if config.test_guild_id else None)
 @app_commands.describe(
     amount="the amount of money that you have accepted",
     who="Who gave you the money",
     description="why they gave you this money",
     image="an attachment showing they gave you the money (could be a photo of a receipt)",
 )
-async def accept(i: discord.Interaction, amount: Optional[str], who: discord.Member, description: Optional[str],
+async def payed_off(i: discord.Interaction, amount: Optional[str], who: discord.Member, description: Optional[str],
                  image: Optional[discord.Attachment]):
     await simple_money_write(
         i, amount, who, description, image, "You can't owe yourself!", "You can't owe a bot!",
@@ -177,8 +173,8 @@ async def accept(i: discord.Interaction, amount: Optional[str], who: discord.Mem
     )
 
 
-@tree.context_menu(name="accept (they gave you money)", guild=discord.Object(id=1201588191094906890))
-async def accept_context(i: discord.Interaction, who: discord.Member):
+@tree.context_menu(name="payed-off (they gave you money)", guild=discord.Object(config.test_guild_id) if config.test_guild_id else None)
+async def payed_off(i: discord.Interaction, who: discord.Member):
     await simple_money_write(
         i, None, who, None, None, "You can't owe yourself!", "You can't owe a bot!",
         "Cannot register accepting money from this user, " + wl_you_str,
@@ -245,7 +241,7 @@ class DebtCommandView(UserApplicationView):
     async def confirm(self, i, b):
         group = MoneyWriteGroup.create(id=self.unique_identifier, description=self.description, created_by=self.user,
                                        type=self.type,
-                                       picture=self.url)
+                                       image_url=self.url)
         sub_group = MoneyWriteSubGroup.create(group=group)
         self_participant = MoneyWriteGroupParticipant.create(group=group, participant=self.user,
                                                              can_delete=self.give,

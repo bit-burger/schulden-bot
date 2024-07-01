@@ -18,8 +18,7 @@ async def change_image(i, image: discord.Attachment):
 
 
 @tree.command(name='add_image', description="add image or pdf (will be converted to image) to last supporting command "
-                                            "you have been using",
-              guild=discord.Object(id=1201588191094906890))
+                                            "you have been using", guild=discord.Object(config.test_guild_id) if config.test_guild_id else None)
 @app_commands.describe(
     image="the image to add"
 )
@@ -27,8 +26,7 @@ async def add_image(i: discord.Interaction, image: discord.Attachment):
     await change_image(i, image)
 
 
-@tree.command(name='edit_image', description="edit image or pdf of last supporting command you have been using",
-              guild=discord.Object(id=1201588191094906890))
+@tree.command(name='edit_image', description="edit image or pdf of last supporting command you have been using", guild=discord.Object(config.test_guild_id) if config.test_guild_id else None)
 @app_commands.describe(
     image="the new image/pdf"
 )

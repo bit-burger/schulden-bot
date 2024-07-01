@@ -18,7 +18,7 @@ description = open("description.txt", "r")
 description = description.read()
 
 
-@tree.command(name='version', description="gives version information", guild=discord.Object(id=1201588191094906890))
+@tree.command(name='version', description="gives version information", guild=discord.Object(config.test_guild_id) if config.test_guild_id else None)
 async def schulden(interaction: discord.Interaction):
     embed = discord.Embed(description="full version: **" + version + "**-" + sha)
     embed.set_author(name="SchuldenBot V" + major_version, icon_url=config.client.user.display_avatar.url)

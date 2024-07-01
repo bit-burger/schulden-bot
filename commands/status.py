@@ -9,10 +9,10 @@ from .utils.formatting import *
 from .utils.database_utils import *
 from .utils.discord_utils import *
 
-page_size = 2
+page_size = 10
 
 
-@tree.command(name='status', description="status of debt with all users", guild=discord.Object(id=1201588191094906890))
+@tree.command(name='status', description="status of debt with all users", guild=discord.Object(config.test_guild_id) if config.test_guild_id else None)
 @app_commands.describe(show="if this slash command should be viewable from outside (change default in /settings)")
 async def status(interaction: discord.Interaction, show: Optional[Literal["yes", "no"]]):
     user = check_register(interaction)

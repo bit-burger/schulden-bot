@@ -8,7 +8,7 @@ from functools import partial
 import discord
 
 
-@tree.command(name='settings', description="open settings", guild=discord.Object(id=1201588191094906890))
+@tree.command(name='settings', description="open settings", guild=discord.Object(config.test_guild_id) if config.test_guild_id else None)
 async def settings(interaction: discord.Interaction):
     user = check_register(interaction)
     await run_application(interaction, SettingsView(user))

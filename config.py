@@ -36,6 +36,8 @@ intents.message_content = True
 intents.guild_messages = True
 intents.members = True
 
+test_guild_id = config.get("test_guild_id", None)
+
 client = discord.Client(intents=intents)
 tree = app_commands.CommandTree(client)
 

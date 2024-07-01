@@ -15,8 +15,7 @@ import datetime
 page_size = 5
 
 
-@tree.command(name='history', description="history of debt with single person",
-              guild=discord.Object(id=1201588191094906890))
+@tree.command(name='history', description="history of debt with single person", guild=discord.Object(config.test_guild_id) if config.test_guild_id else None)
 @app_commands.describe(show="if this slash command should be viewable from outside (change default in /settings)")
 @app_commands.rename(who="with")
 async def history(interaction: discord.Interaction, who: discord.Member, show: Optional[Literal["yes", "no"]]):

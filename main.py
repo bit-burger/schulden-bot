@@ -1,4 +1,6 @@
 import discord
+from discord import app_commands
+
 import config
 import commands
 
@@ -13,7 +15,8 @@ config.client.add_dynamic_items(ExamplePersistent, DebtView)
 
 @config.client.event
 async def on_ready():
-    config.commands = await config.tree.sync(guild=discord.Object(id=1201588191094906890))
+    if config.test_guild_id:
+        config.commands = await config.tree.sync(guild=discord.Object(id=config.test_guild_id))
     print(f'We have logged in as {config.client.user}')
 
 

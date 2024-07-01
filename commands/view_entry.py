@@ -1,17 +1,15 @@
 import asyncio
 from typing import Iterable, Iterator
 
-import discord
 from discord import app_commands, ButtonStyle, ui
 
 from .attachment import image_listener
-from .example_persistent import ExamplePersistent
-from .utils.application_view import ApplicationView, UserApplicationView, run_application
+from .utils.application_view import ApplicationView, run_application
 import commands.utils.application_view as application_view
 from .utils.formatting import *
 from commands.utils.database_utils import *
 from commands.utils.discord_utils import send_error_embed
-from config import tree, trash_can_emoji, help_icon_url, client
+from config import tree, trash_can_emoji,client
 from database.groups import *
 from .utils.persistent_view import ButtonSystem, Button
 
@@ -35,8 +33,7 @@ async def edit_view_debt_interactions(unique_id, user_id):
             ...
 
 
-@tree.command(name='view', description="history of debt with single person",
-              guild=discord.Object(id=1201588191094906890))
+@tree.command(name='view', description="history of debt with single person", guild=discord.Object(config.test_guild_id) if config.test_guild_id else None)
 @app_commands.autocomplete()
 @app_commands.rename(unique_id="unique_id")
 @app_commands.describe(show="if this slash command should be viewable from outside (change default in /settings)",

@@ -6,7 +6,7 @@ from database.database_schema import User
 
 
 # write that this allowes the application to save user data, until unregisertering
-@tree.command(name='register', description="register to take part ", guild=discord.Object(id=1201588191094906890))
+@tree.command(name='register', description="register to take part ")
 async def register(interaction: discord.Interaction):
     registered_user_query = User.select().where(User.id == interaction.user.id)
     if registered_user_query.exists():
