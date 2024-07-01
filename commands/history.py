@@ -12,13 +12,15 @@ from database.permissions import can_send
 
 import datetime
 
-page_size = 5
+page_size = 10
 
 
 @tree.command(name='history', description="history of debt with single person", guild=discord.Object(config.test_guild_id) if config.test_guild_id else None)
 @app_commands.describe(show="if this slash command should be viewable from outside (change default in /settings)")
 @app_commands.rename(who="with")
 async def history(interaction: discord.Interaction, who: discord.Member, show: Optional[Literal["yes", "no"]]):
+    if who.id == interaction.user.id:
+        return await send_error_embed(interaction, title="You cannot view the history with yourself")
     user = check_register(interaction)
     ephemeral = ephemeral_from_arg(user, show)
     with_user = check_register_from_id(who.id)
@@ -112,16 +114,16 @@ class HistoryView(UserApplicationView):
 
             match data["type"]:
                 case "group_debt":
-                    type_ = "👥"
+                    type_ = "`👥`"
                 case "money_give":
-                    type_ = "💶"
+                    type_ = "`💶`"
                 case _:
-                    type_ = "📒"  # 📒🗄📁🗂️📝💾
+                    type_ = "`📒`"  # 📒🗄📁🗂️📝💾
             amounts += amount + time + (trash_can_emoji if deleted else "") + "\n"
             descriptions += type_ + " " + description + "\n"
             creators += id + creator + "\n"
 
-        embed.add_field(name="amount" + " " * (6 + max_len) + "date", value=amounts)
+        embed.add_field(name="amount" + " " * (5 + max_len) + "date", value=amounts)
         embed.add_field(name="description", value=descriptions)
         embed.add_field(name="unique id     creator", value=creators)
 
