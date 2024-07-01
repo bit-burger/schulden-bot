@@ -112,7 +112,7 @@ class DebtView(ButtonSystem, name="dv"):
         await run_application(self.current_interaction,
                               DebtEdit(self.group, self.sub_groups, participant, self.unique_id, self.name,
                                        user_id=user_id, hidden=self.hidden, ac_interaction=self.current_interaction),
-                              is_initial=not self.hidden)
+                              is_initial=True)
 
     def render(self) -> Iterable[Button | discord.Embed | str]:
         if is_group_id(self.unique_id):
@@ -263,18 +263,9 @@ class DebtEdit(ApplicationView):
     async def save(self, i, b):
         self.edited = False
         self.group.save()
-        if self.hidden:
-            await asyncio.gather(
-                i.response.send_message(
-                    embed=discord.Embed(title="Saved successfully",
-                                        description="your changes have been saved successfully",
-                                        color=0x00FF00), ephemeral=True),
-                DebtView.run_system_on_interaction_edit(self.ac_interaction, (self.uid, self.user_id, self.hidden)),
-                edit_view_debt_interactions(self.uid, self.user_id))
-        else:
-            self.saved = True
-            await self.set_state(i)
-            await edit_view_debt_interactions(self.uid, self.user_id)
+        self.saved = True
+        await self.set_state(i)
+        await edit_view_debt_interactions(self.uid, self.user_id)
 
     async def cancel(self, i, b):
         await i.response.defer()
@@ -389,11 +380,7 @@ class DeleteConfirm(discord.ui.View):
         await interaction.delete_original_response()
         self.debt_edit.clean_up()
         self.stop()
-        if self.hidden:
-            # on stop
-            await DebtView.run_system_on_interaction_edit(self.edit_interaction, (self.uid, self.user_id, True))
-        else:
-            await asyncio.gather(self.edit_interaction.delete_original_response(),
+        await asyncio.gather(self.edit_interaction.delete_original_response(),
                                  edit_view_debt_interactions(self.uid, self.user_id))
 
     @discord.ui.button(label='cancel', style=discord.ButtonStyle.blurple)
