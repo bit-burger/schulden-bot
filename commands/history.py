@@ -91,7 +91,7 @@ class HistoryView(UserApplicationView):
             length = len(format_euro(abs(data['cent_amount'])))
             max_len = max(max_len, length)
         embed.description = f"## Your debt and repayment history with <@{self.with_user.id}>\n"
-        embed.description += f"### total balance: {format_euro_sign(balance)}\n"
+        embed.description += f"### total balance: {format_euro_sign(-balance)}\n"
         embed.description += f"### view, edit, delete: {mention_slash_command("view")}` [unique id]`"
 
         creators = ""
@@ -102,7 +102,7 @@ class HistoryView(UserApplicationView):
             id = f"`{data["id"]}    `"
             if data["sub_id"]:
                 id = f"`{data["id"]}({data["sub_id"]}) `"
-            amount = sign_emoji(data["cent_amount"], deleted=deleted) + "`" + pad_to_len(format_euro(abs(data["cent_amount"])),
+            amount = sign_emoji(-data["cent_amount"], deleted=deleted) + "`" + pad_to_len(format_euro(abs(data["cent_amount"])),
                                                                         max_len + 2) + "`"
             description = (data["description"] or "-")
             creator = f"<@{data["created_by"]}>  "
@@ -128,8 +128,8 @@ class HistoryView(UserApplicationView):
         embed.add_field(name="unique id     creator", value=creators)
 
         embed.set_footer(icon_url=help_icon_url,
-                         text=f"positive: you owe this person,  "
-                              f"negative: this person owes you, "
+                         text=f"positive: this amount is owed you,  "
+                              f"negative: you owe this amount, "
                               f"trashcan: was deleted\n"
                               f"📒: amount was lent,  "
                               f"👥: amount was lent to multiple people,  "

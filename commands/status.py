@@ -74,12 +74,12 @@ class StatusView(UserApplicationView):
             max_len = max(max_len, len(data['money']))
         for data in page_data:
             embed.description += sign_emoji(
-                data['cent_amount']) + f"`{pad_to_len(data['money'], max_len)}` <@{data['user_id']}>\n"
-        embed.add_field(name="sum of all debt:", value=sign_emoji(debt) + f"`{format_euro(debt)}`")
-        embed.add_field(name="sum of all credit:", value=sign_emoji(-credit) + f"`{format_euro(credit)}`")
-        embed.add_field(name="total sum:", value=sign_emoji(debt - credit) + f"`{format_euro(abs(debt - credit))}`")
+                -data['cent_amount']) + f"`{pad_to_len(data['money'], max_len)}` <@{data['user_id']}>\n"
+        embed.add_field(name="sum of all debt:", value=sign_emoji(-debt) + f"`{format_euro(debt)}`")
+        embed.add_field(name="sum of all credit:", value=sign_emoji(credit) + f"`{format_euro(credit)}`")
+        embed.add_field(name="total sum:", value=sign_emoji(credit - debt) + f"`{format_euro(abs(debt - credit))}`")
         embed.set_footer(icon_url=help_icon_url,
-                         text="positive means you owe this person (debt), negative means this person owes you (credit)")
+                         text="positive means this person owes you (credit), negative means you owe this person you (debt)")
         yield Button(label="⏪", disabled=is_first_page, _callable=self.to_first_page)
         yield Button(label="◀️", disabled=is_first_page, _callable=self.one_page_back)
         yield Button(label=f"{self.page + 1}/{page_count}", disabled=True, style=ButtonStyle.grey)

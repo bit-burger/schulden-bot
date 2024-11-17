@@ -102,7 +102,7 @@ class MoneyWriteSubGroup(BaseModel):
 # but for simple debts, only group is needed, as you cannot view per sub group (no unique identifier for the sub_group)
 class MoneyWriteGroupParticipant(BaseModel):
     group = ForeignKeyField(MoneyWriteGroup, backref="participants")
-    sub_group = ForeignKeyField(MoneyWriteSubGroup, null=True)
+    sub_group = ForeignKeyField(MoneyWriteSubGroup, null=True) # why true???
     participant = ForeignKeyField(User)
     can_request_deletion = BooleanField(default=False)
     can_delete = BooleanField(default=False)
