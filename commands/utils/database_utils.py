@@ -44,6 +44,6 @@ def max_interaction_error(you: User, other: User, amount: int, human_readable_fo
                 )
     max_amount_other = max_interaction_amount(other)
     if max_amount_other < amount:
-        return (f"The {setting_names[Setting.max_amount]} of <@{other.id}> is at `{format_euro(max_amount_you)}`, "
+        return (f"The {setting_names[Setting.max_amount]} of <@{other.id}> is at `{format_euro(max_amount_other)}`, "
                 f"but the amount is `{format_euro(amount)}`."
                 )
